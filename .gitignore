@@ -1,0 +1,21 @@
+# Build files
+build/
+cmake-build-*/
+
+# Compiled binaries and objects
+*.o
+*.a
+*.so
+*.out
+irisgpu
+
+# Generated images
+output.ppm
+
+# IDE files
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
