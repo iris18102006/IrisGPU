@@ -15,17 +15,25 @@ struct TexturedVertex {
 
 class Framebuffer {
 private:
-    int width, height;
+    int width;
+    int height;
 
     std::vector<Color> pixels;
     std::vector<float> depthBuffer;
+
+    std::size_t getIndex(int x, int y) const;
 
 public:
     Framebuffer(int width, int height);
 
     void clear(const Color& color);
-
     void setPixel(int x, int y, const Color& color);
+
+    const Color* getPixels() const;
+    const Color* getPixel(int x, int y) const;
+
+    int getWidth() const;
+    int getHeight() const;
 
     void drawTriangle(
         int x0, int y0,
@@ -61,11 +69,4 @@ public:
     );
 
     bool savePPM(const std::string& filename) const;
-
-    int getWidth() const;
-    int getHeight() const;
-
-    const Color* getPixels() const {
-        return pixels.data();
-    }
 };

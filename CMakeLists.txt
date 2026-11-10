@@ -22,3 +22,25 @@ target_compile_options(irisgpu PRIVATE
     -Wextra
     -Wpedantic
 )
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(irisgpu_tests
+        tests/FramebufferTests.cpp
+        src/Framebuffer.cpp
+    )
+
+    target_include_directories(irisgpu_tests PRIVATE include)
+
+    target_compile_options(irisgpu_tests PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+    )
+
+    add_test(
+        NAME FramebufferTests
+        COMMAND irisgpu_tests
+    )
+endif()

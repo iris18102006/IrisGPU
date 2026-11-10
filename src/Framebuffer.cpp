@@ -2,15 +2,40 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <fstream>
 #include <limits>
+#include <stdexcept>
+
+namespace {
+
+std::size_t checkedPixelCount(int width, int height) {
+    if (width <= 0 || height <= 0) {
+        throw std::invalid_argument(
+            "Framebuffer dimensions must be positive"
+        );
+    }
+
+    const auto w = static_cast<std::size_t>(width);
+    const auto h = static_cast<std::size_t>(height);
+
+    if (w > std::numeric_limits<std::size_t>::max() / h) {
+        throw std::length_error(
+            "Framebuffer dimensions overflow"
+        );
+    }
+
+    return w * h;
+}
+
+}
 
 Framebuffer::Framebuffer(int width, int height)
     : width(width),
       height(height),
-      pixels(width * height),
+      pixels(checkedPixelCount(width, height)),
       depthBuffer(
-          width * height,
+          pixels.size(),
           std::numeric_limits<float>::infinity()
       ) {}
 
@@ -297,4 +322,19 @@ int Framebuffer::getWidth() const {
 
 int Framebuffer::getHeight() const {
     return height;
+}
+std::size_t Framebuffer::getIndex(int x, int y) const {
+    return static_cast<std::size_t>(y) * width + x;
+}
+
+const Color* Framebuffer::getPixels() const {
+    return pixels.data();
+}
+
+const Color* Framebuffer::getPixel(int x, int y) const {
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+        return nullptr;
+    }
+
+    return &pixels[getIndex(x, y)];
 }
