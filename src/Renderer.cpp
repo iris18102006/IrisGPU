@@ -140,3 +140,49 @@ void Renderer::draw(
             in.uv = tri.uvs[i];
             in.normal = tri.normals[i];
 
+            const VertexOutput out = vertexShader ? (*vertexShader)(in, uniforms)
+                                                  : defaultVertexShader(in, uniforms);
+            poly.v[i] = {out.clipPosition, out.uv, out.normal};
+        }
+
+        // ---- trivial reject / accept against the frustum ----
+        bool rejected = false;
+        bool needsClip = false;
+
+        for (int plane = 0; plane < 6 && !rejected; ++plane) {
+            int outside = 0;
+            for (int i = 0; i < 3; ++i) {
+                if (planeDistance(plane, poly.v[i].clip) < 0.0f) ++outside;
+            }
+            if (outside == 3) rejected = true;
+            else if (outside > 0) needsClip = true;
+        }
+
+        if (rejected) continue;
+
+        if (needsClip) {
+            Polygon scratch;
+            Polygon* src = &poly;
+            Polygon* dst = &scratch;
+
+            for (int plane = 0; plane < 6; ++plane) {
+                clipAgainstPlane(*src, *dst, plane);
+                std::swap(src, dst);
+                if (src->count < 3) break;
+            }
+
+            if (src->count < 3) continue;
+            if (src != &poly) poly = *src;
+        }
+
+        // ---- perspective divide + viewport ----
+        std::array<TexturedVertex, kMaxPolygon> projected;
+        std::array<Vec3, kMaxPolygon> ndc;
+
+        for (int i = 0; i < poly.count; ++i) {
+            const ClipVertex& cv = poly.v[i];
+            if (cv.clip.w <= 1e-6f) { poly.count = 0; break; }
+
+            const float invW = 1.0f / cv.clip.w;
+            ndc[i] = Vec3(cv.clip.x * invW, cv.clip.y * invW, cv.clip.z * invW);
+
