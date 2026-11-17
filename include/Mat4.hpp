@@ -1,22 +1,39 @@
 #pragma once
 
 #include "Vec3.hpp"
+#include "Vec4.hpp"
+
 #include <array>
 #include <cmath>
 
+// Row-major 4x4 matrix, column-vector convention (v' = M * v).
+// Right-handed coordinates, camera looks down -Z, OpenGL-style clip space.
 class Mat4 {
 private:
     std::array<float, 16> data{};
 
 public:
+    static constexpr float PI = 3.14159265358979323846f;
+
     Mat4() = default;
 
-    float& at(int row, int col) {
-        return data[row * 4 + col];
+    float& at(int row, int col) { return data[row * 4 + col]; }
+    float at(int row, int col) const { return data[row * 4 + col]; }
+
+    static float toRadians(float degrees) { return degrees * PI / 180.0f; }
+
+    static Mat4 identity() {
+        Mat4 r;
+        for (int i = 0; i < 4; ++i) r.at(i, i) = 1.0f;
+        return r;
     }
 
-    float at(int row, int col) const {
-        return data[row * 4 + col];
+    static Mat4 translation(const Vec3& o) {
+        Mat4 r = identity();
+        r.at(0, 3) = o.x;
+        r.at(1, 3) = o.y;
+        r.at(2, 3) = o.z;
+        return r;
     }
 
     static Mat4 identity() {
