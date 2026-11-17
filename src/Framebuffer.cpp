@@ -142,33 +142,27 @@ void Framebuffer::drawTexturedTriangle3D(
     const int minY = std::max(yMin, static_cast<int>(std::floor(std::min({a.y, b.y, c.y}))));
     const int maxY = std::min(yMax - 1, static_cast<int>(std::ceil(std::max({a.y, b.y, c.y}))));
 
-    int maxX = std::min(
-        width - 1,
-        static_cast<int>(std::ceil(std::max({a.x, b.x, c.x})))
-    );
+    if (minX > maxX || minY > maxY) return;
 
-    int minY = std::max(
-        0,
-        static_cast<int>(std::floor(std::min({a.y, b.y, c.y})))
-    );
+    // Barycentric weights are linear in (x, y), so step them instead of recomputing.
+    const float dw0dx = (b.y - c.y) * invArea;
+    const float dw1dx = (c.y - a.y) * invArea;
 
-    int maxY = std::min(
-        height - 1,
-        static_cast<int>(std::ceil(std::max({a.y, b.y, c.y})))
-    );
+    const float invDa = 1.0f / a.depth;
+    const float invDb = 1.0f / b.depth;
+    const float invDc = 1.0f / c.depth;
 
-    float invA = 1.0f / a.depth;
-    float invB = 1.0f / b.depth;
-    float invC = 1.0f / c.depth;
+    // Attributes pre-divided by depth for perspective-correct interpolation.
+    const float ua = a.u * invDa, ub = b.u * invDb, uc = c.u * invDc;
+    const float va = a.v * invDa, vb = b.v * invDb, vc = c.v * invDc;
+    const Vec3 na = a.normal * invDa, nb = b.normal * invDb, nc = c.normal * invDc;
 
     for (int y = minY; y <= maxY; ++y) {
-        for (int x = minX; x <= maxX; ++x) {
-            float px = x + 0.5f;
-            float py = y + 0.5f;
+        const float py = static_cast<float>(y) + 0.5f;
+        const float px0 = static_cast<float>(minX) + 0.5f;
 
-            float w0 =
-                ((b.x - px) * (c.y - py) -
-                 (b.y - py) * (c.x - px)) / area;
+        float w0 = ((b.x - px0) * (c.y - py) - (b.y - py) * (c.x - px0)) * invArea;
+        float w1 = ((c.x - px0) * (a.y - py) - (c.y - py) * (a.x - px0)) * invArea;
 
             float w1 =
                 ((c.x - px) * (a.y - py) -
