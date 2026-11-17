@@ -57,21 +57,11 @@ void Framebuffer::drawTriangle(
 
     for (int y = minY; y <= maxY; ++y) {
         for (int x = minX; x <= maxX; ++x) {
-            float w0 = static_cast<float>(
-                (x1 - x) * (y2 - y) -
-                (y1 - y) * (x2 - x)
-            ) / area;
+            const float w0 = static_cast<float>((x1 - x) * (y2 - y) - (y1 - y) * (x2 - x)) / area;
+            const float w1 = static_cast<float>((x2 - x) * (y0 - y) - (y2 - y) * (x0 - x)) / area;
+            const float w2 = 1.0f - w0 - w1;
 
-            float w1 = static_cast<float>(
-                (x2 - x) * (y0 - y) -
-                (y2 - y) * (x0 - x)
-            ) / area;
-
-            float w2 = 1.0f - w0 - w1;
-
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                setPixel(x, y, color);
-            }
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) setPixel(x, y, color);
         }
     }
 }
@@ -82,37 +72,24 @@ void Framebuffer::drawTriangle3D(
     int x2, int y2, float z2,
     const Color& color
 ) {
-    float area = static_cast<float>(
-        (x1 - x0) * (y2 - y0) -
-        (y1 - y0) * (x2 - x0)
-    );
-
+    const float area = static_cast<float>((x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0));
     if (std::abs(area) < 0.0001f) return;
 
-    int minX = std::max(0, std::min({x0, x1, x2}));
-    int maxX = std::min(width - 1, std::max({x0, x1, x2}));
-
-    int minY = std::max(0, std::min({y0, y1, y2}));
-    int maxY = std::min(height - 1, std::max({y0, y1, y2}));
+    const int minX = std::max(0, std::min({x0, x1, x2}));
+    const int maxX = std::min(width - 1, std::max({x0, x1, x2}));
+    const int minY = std::max(0, std::min({y0, y1, y2}));
+    const int maxY = std::min(height - 1, std::max({y0, y1, y2}));
 
     for (int y = minY; y <= maxY; ++y) {
         for (int x = minX; x <= maxX; ++x) {
-            float w0 = static_cast<float>(
-                (x1 - x) * (y2 - y) -
-                (y1 - y) * (x2 - x)
-            ) / area;
-
-            float w1 = static_cast<float>(
-                (x2 - x) * (y0 - y) -
-                (y2 - y) * (x0 - x)
-            ) / area;
-
-            float w2 = 1.0f - w0 - w1;
+            const float w0 = static_cast<float>((x1 - x) * (y2 - y) - (y1 - y) * (x2 - x)) / area;
+            const float w1 = static_cast<float>((x2 - x) * (y0 - y) - (y2 - y) * (x0 - x)) / area;
+            const float w2 = 1.0f - w0 - w1;
 
             if (w0 < 0 || w1 < 0 || w2 < 0) continue;
 
-            float z = w0 * z0 + w1 * z1 + w2 * z2;
-            int index = y * width + x;
+            const float z = w0 * z0 + w1 * z1 + w2 * z2;
+            const std::size_t index = getIndex(x, y);
 
             if (z < depthBuffer[index]) {
                 depthBuffer[index] = z;
