@@ -48,3 +48,21 @@ void Mesh::computeSmoothNormals() {
     }
 }
 
+void Mesh::normalizeToUnitSize() {
+    if (vertices.empty()) return;
+
+    Vec3 lo = vertices[0];
+    Vec3 hi = vertices[0];
+
+    for (const Vec3& v : vertices) {
+        lo = {std::min(lo.x, v.x), std::min(lo.y, v.y), std::min(lo.z, v.z)};
+        hi = {std::max(hi.x, v.x), std::max(hi.y, v.y), std::max(hi.z, v.z)};
+    }
+
+    const Vec3 center = (lo + hi) * 0.5f;
+    float radius = 0.0f;
+    for (const Vec3& v : vertices) radius = std::max(radius, length(v - center));
+    if (radius < 1e-6f) return;
+
+    for (Vec3& v : vertices) v = (v - center) / radius;
+}
