@@ -80,24 +80,26 @@ public:
         return r;
     }
 
-    Vec3 transformPoint(const Vec3& point) const {
-        float x =
-            at(0, 0) * point.x +
-            at(0, 1) * point.y +
-            at(0, 2) * point.z +
-            at(0, 3);
+    static Mat4 lookAt(const Vec3& eye, const Vec3& target, const Vec3& up) {
+        const Vec3 f = normalize(target - eye);
+        const Vec3 s = normalize(cross(f, up));
+        const Vec3 u = cross(s, f);
 
-        float y =
-            at(1, 0) * point.x +
-            at(1, 1) * point.y +
-            at(1, 2) * point.z +
-            at(1, 3);
+        Mat4 r = identity();
+        r.at(0, 0) = s.x;  r.at(0, 1) = s.y;  r.at(0, 2) = s.z;  r.at(0, 3) = -dot(s, eye);
+        r.at(1, 0) = u.x;  r.at(1, 1) = u.y;  r.at(1, 2) = u.z;  r.at(1, 3) = -dot(u, eye);
+        r.at(2, 0) = -f.x; r.at(2, 1) = -f.y; r.at(2, 2) = -f.z; r.at(2, 3) = dot(f, eye);
+        return r;
+    }
 
-        float z =
-            at(2, 0) * point.x +
-            at(2, 1) * point.y +
-            at(2, 2) * point.z +
-            at(2, 3);
+    Mat4 operator*(const Mat4& o) const {
+        Mat4 r;
+        for (int row = 0; row < 4; ++row)
+            for (int col = 0; col < 4; ++col)
+                for (int k = 0; k < 4; ++k)
+                    r.at(row, col) += at(row, k) * o.at(k, col);
+        return r;
+    }
 
         float w =
             at(3, 0) * point.x +
