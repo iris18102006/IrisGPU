@@ -34,3 +34,31 @@ public:
         const VertexShader* vertexShader = nullptr
     );
 
+    // Rasterizes everything queued since beginFrame().
+    void endFrame();
+
+    const RenderStats& stats() const { return lastStats; }
+
+private:
+    struct DrawCall {
+        ShaderUniforms uniforms;
+        const FragmentShader* fragmentShader = nullptr;
+    };
+
+    struct ScreenTriangle {
+        TexturedVertex v[3];
+        std::size_t drawIndex = 0;
+        int minY = 0;
+        int maxY = 0;
+    };
+
+    Framebuffer& framebuffer;
+    unsigned threads;
+    bool cullBackfaces = true;
+
+    std::vector<DrawCall> drawCalls;
+    std::vector<ScreenTriangle> triangles;
+
+    RenderStats currentStats;
+    RenderStats lastStats;
+};
