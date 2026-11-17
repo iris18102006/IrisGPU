@@ -27,12 +27,23 @@ struct Mesh {
     // Area-weighted average of the faces touching each vertex (smooth look).
     void computeSmoothNormals();
 
+    // Re-centers on the origin and scales so the farthest vertex is at distance 1.
+    void normalizeToUnitSize();
 };
 
 struct MeshInstance {
     const Mesh* mesh = nullptr;
+    const Texture* texture = nullptr;
 
     Vec3 position;
-    Vec3 rotation;
+    Vec3 rotation;  // degrees around X, Y, Z
     Vec3 scale = Vec3(1, 1, 1);
+
+    Mat4 modelMatrix() const {
+        return Mat4::translation(position) *
+               Mat4::rotationY(rotation.y) *
+               Mat4::rotationX(rotation.x) *
+               Mat4::rotationZ(rotation.z) *
+               Mat4::scaling(scale);
+    }
 };
