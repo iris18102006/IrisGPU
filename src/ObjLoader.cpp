@@ -102,3 +102,45 @@ bool parseObj(std::istream& input, Mesh& out, std::string* error) {
                 face.push_back(c);
             }
 
+            if (face.size() < 3) return fail("face needs at least 3 vertices");
+
+            for (std::size_t i = 1; i + 1 < face.size(); ++i) {
+                const Corner tri[3] = {face[0], face[i], face[i + 1]};
+
+                MeshTriangle t;
+                for (int k = 0; k < 3; ++k) {
+                    t.indices[k] = tri[k].v;
+                    if (tri[k].vt >= 0) t.uvs[k] = uvs[tri[k].vt];
+
+                    if (tri[k].vn >= 0) {
+                        t.normals[k] = normalize(normals[tri[k].vn]);
+                    } else {
+                        anyMissingNormal = true;
+                    }
+                }
+                out.triangles.push_back(t);
+            }
+        }
+    }
+
+    if (out.triangles.empty()) {
+        if (error) *error = "no faces found";
+        return false;
+    }
+
+    if (anyMissingNormal) out.computeSmoothNormals();
+    return true;
+}
+
+bool loadObj(const std::string& path, Mesh& out, std::string* error) {
+    std::ifstream file(path);
+    if (!file) {
+        if (error) *error = "cannot open '" + path + "'";
+        return false;
+    }
+
+    if (!parseObj(file, out, error)) return false;
+
+    out.name = path;
+    return true;
+}
