@@ -3,14 +3,16 @@
 #include "Color.hpp"
 #include "Shader.hpp"
 
-#include <vector>
+#include <cstddef>
 #include <string>
+#include <vector>
 
 struct TexturedVertex {
-    float x, y;
-    float z;
-    float depth;
-    float u, v;
+    float x = 0.0f, y = 0.0f;   // screen space (pixels)
+    float z = 0.0f;             // NDC depth, linear in screen space
+    float depth = 0.0f;         // view-space depth (clip w), used for perspective correction
+    float u = 0.0f, v = 0.0f;
+    Vec3 normal;
 };
 
 class Framebuffer {
