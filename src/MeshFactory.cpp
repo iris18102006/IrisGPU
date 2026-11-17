@@ -124,3 +124,31 @@ Mesh createTorusMesh(float majorRadius, float minorRadius, int segments, int sid
         }
     }
 
+    auto idx = [&](int i, int j) { return (i % segments) * sides + (j % sides); };
+    auto uv = [&](int i, int j) {
+        return Vec2{static_cast<float>(i) / static_cast<float>(segments) * 2.0f,
+                    static_cast<float>(j) / static_cast<float>(sides)};
+    };
+    auto normalAt = [&](int i, int j) {
+        const float u = 2.0f * kPi * static_cast<float>(i) / static_cast<float>(segments);
+        const float v = 2.0f * kPi * static_cast<float>(j) / static_cast<float>(sides);
+        return Vec3(std::cos(v) * std::cos(u), std::sin(v), std::cos(v) * std::sin(u));
+    };
+
+    auto addTri = [&](int i0, int j0, int i1, int j1, int i2, int j2) {
+        MeshTriangle t;
+        t.indices = {idx(i0, j0), idx(i1, j1), idx(i2, j2)};
+        t.uvs = {uv(i0, j0), uv(i1, j1), uv(i2, j2)};
+        t.normals = {normalAt(i0, j0), normalAt(i1, j1), normalAt(i2, j2)};
+        m.triangles.push_back(t);
+    };
+
+    for (int i = 0; i < segments; ++i) {
+        for (int j = 0; j < sides; ++j) {
+            addTri(i, j, i, j + 1, i + 1, j);
+            addTri(i + 1, j, i, j + 1, i + 1, j + 1);
+        }
+    }
+
+    return m;
+}
