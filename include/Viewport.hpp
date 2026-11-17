@@ -4,15 +4,12 @@
 
 class Viewport {
 public:
-    static Vec3 toScreen(
-        const Vec3& point,
-        int width,
-        int height
-    ) {
+    // NDC ([-1,1], y up) to pixel coordinates (y down). z is passed through.
+    static Vec3 toScreen(const Vec3& ndc, int width, int height) {
         return Vec3(
-            (point.x + 1.0f) * 0.5f * width,
-            (1.0f - point.y) * 0.5f * height,
-            point.z
+            (ndc.x + 1.0f) * 0.5f * static_cast<float>(width),
+            (1.0f - ndc.y) * 0.5f * static_cast<float>(height),
+            ndc.z
         );
     }
 };
