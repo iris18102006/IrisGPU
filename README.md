@@ -41,32 +41,34 @@ Fragment shader (perspective-correct uv + normal)
 Framebuffer -> SDL2 window
 ```
 
-3D Geometry
-    ↓
-Transformations
-    ↓
-Projection
-    ↓
-Viewport Transformation
-    ↓
-Triangle Rasterization
-    ↓
-Depth Testing
-    ↓
-Framebuffer
-    ↓
-SDL2 Display
-
-## Technology Stack
-
-- C++
-- CMake
-- SDL2
-- Git
-
-## Building
-
-Install dependencies:
+## Build
 
 ```bash
 sudo apt install build-essential cmake libsdl2-dev
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+## Run
+
+```bash
+./build/irisgpu                       # demo scene
+./build/irisgpu assets/pyramid.obj    # add your own OBJ model to the scene
+./build/irisgpu --render shot.ppm     # render one frame headless
+./build/irisgpu --bench 300           # benchmark (try --threads 1 to compare)
+```
+
+| Key | Action |
+| --- | --- |
+| W A S D | move |
+| Q / E | down / up |
+| Mouse | look |
+| Shift | move faster |
+| 1 / 2 / 3 / 4 | lit / unlit / normals / depth |
+| B | toggle bilinear filtering |
+| C | toggle backface culling |
+| Space | pause animation |
+| P | save screenshot (`.ppm`) |
+| Esc | quit |
+
