@@ -22,3 +22,14 @@ struct Camera {
         ));
     }
 
+    // Horizontal right vector (ignores pitch so strafing stays on the ground plane).
+    Vec3 right() const { return normalize(Vec3(std::cos(yaw), 0.0f, std::sin(yaw))); }
+
+    Mat4 viewMatrix() const {
+        return Mat4::lookAt(position, position + forward(), Vec3(0, 1, 0));
+    }
+
+    Mat4 projectionMatrix(float aspect) const {
+        return Mat4::perspective(fovDegrees, aspect, nearPlane, farPlane);
+    }
+};
