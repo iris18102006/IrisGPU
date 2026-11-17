@@ -1,29 +1,48 @@
 #pragma once
 
 #include "Color.hpp"
-#include "Vec3.hpp"
 #include "Mat4.hpp"
+#include "Vec3.hpp"
+#include "Vec4.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <functional>
 #include <vector>
 
 struct Vec2 {
-    float u, v;
+    float u = 0.0f;
+    float v = 0.0f;
 };
 
+// ---- Vertex stage -------------------------------------------------------
+
 struct Vertex {
-    Vec3 position;
+    Vec3 position;   // model space
     Vec2 uv;
+    Vec3 normal;     // model space
 };
 
 struct VertexOutput {
-    Vec3 position;
+    Vec4 clipPosition;  // must be in clip space (before the perspective divide)
     Vec2 uv;
+    Vec3 normal;        // view space
 };
+
+// ---- Fragment stage -----------------------------------------------------
 
 struct FragmentInput {
     Vec2 uv;
-    float depth;
+    float depth = 0.0f;  // view-space distance along -Z
+    Vec3 normal;         // view space, interpolated (NOT normalized)
+};
+
+enum class ShadeMode : int {
+    TexturedLit = 0,
+    TexturedFlat = 1,
+    Normals = 2,
+    Depth = 3
 };
 
 struct ShaderUniforms {
