@@ -1,15 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(IrisGPU VERSION 0.1.0 LANGUAGES CXX)
+project(IrisGPU VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+find_package(Threads REQUIRED)
 find_package(SDL2 REQUIRED)
 
-add_executable(irisgpu
-    src/main.cpp
+# Renderer core: no SDL dependency, so it can be tested and used headless.
+add_library(irisgpu_core STATIC
     src/Framebuffer.cpp
 )
 
