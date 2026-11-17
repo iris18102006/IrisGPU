@@ -139,3 +139,66 @@ bool testPlaneMesh() {
     return windingMatchesNormals(p) && near(p.triangles[0].normals[0], Vec3(0, 1, 0));
 }
 
+bool testNormalizeToUnitSize() {
+    Mesh m = createCubeMesh();
+    for (Vec3& v : m.vertices) v = v * 10.0f + Vec3(100, 0, 0);
+    m.normalizeToUnitSize();
+
+    float maxLen = 0.0f;
+    Vec3 sum;
+    for (const Vec3& v : m.vertices) {
+        maxLen = std::max(maxLen, length(v));
+        sum += v;
+    }
+    return near(maxLen, 1.0f) && near(sum / static_cast<float>(m.vertices.size()), Vec3(0, 0, 0));
+}
+
+// ---------------- OBJ ----------------
+
+bool testObjQuadAndNegativeIndices() {
+    std::istringstream in(
+        "# a quad\n"
+        "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\n"
+        "vt 0 0\nvt 1 0\nvt 1 1\nvt 0 1\n"
+        "f 1/1 2/2 3/3 4/4\n"
+        "f -4 -3 -2\n"
+    );
+
+    Mesh m;
+    std::string err;
+    if (!parseObj(in, m, &err)) return false;
+
+    // quad -> 2 triangles, plus 1 triangle from the negative-index face.
+    return m.triangles.size() == 3 &&
+           m.vertices.size() == 4 &&
+           m.triangles[0].indices == std::array<int, 3>{0, 1, 2} &&
+           m.triangles[1].indices == std::array<int, 3>{0, 2, 3} &&
+           m.triangles[2].indices == std::array<int, 3>{0, 1, 2} &&
+           near(m.triangles[0].uvs[2].u, 1.0f);
+}
+
+bool testObjGeneratesNormals() {
+    std::istringstream in("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    Mesh m;
+    return parseObj(in, m) && near(m.triangles[0].normals[0], Vec3(0, 0, 1));
+}
+
+bool testObjUsesGivenNormals() {
+    std::istringstream in("v 0 0 0\nv 1 0 0\nv 0 1 0\nvn 0 0 2\nf 1//1 2//1 3//1\n");
+    Mesh m;
+    return parseObj(in, m) && near(m.triangles[0].normals[1], Vec3(0, 0, 1));
+}
+
+bool testObjRejectsBadInput() {
+    Mesh m;
+    std::string err;
+
+    std::istringstream badIndex("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 9\n");
+    std::istringstream noFaces("v 0 0 0\n");
+    std::istringstream badVertex("v 0 zero 0\n");
+
+    return !parseObj(badIndex, m, &err) && !err.empty() &&
+           !parseObj(noFaces, m) &&
+           !parseObj(badVertex, m);
+}
+
