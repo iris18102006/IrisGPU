@@ -186,3 +186,50 @@ void Renderer::draw(
             const float invW = 1.0f / cv.clip.w;
             ndc[i] = Vec3(cv.clip.x * invW, cv.clip.y * invW, cv.clip.z * invW);
 
+            const Vec3 screen = Viewport::toScreen(ndc[i], width, height);
+
+            TexturedVertex tv;
+            tv.x = screen.x;
+            tv.y = screen.y;
+            tv.z = screen.z;
+            tv.depth = cv.clip.w;
+            tv.u = cv.uv.u;
+            tv.v = cv.uv.v;
+            tv.normal = cv.normal;
+            projected[i] = tv;
+        }
+
+        if (poly.count < 3) continue;
+
+        // ---- backface culling: CCW in NDC (y up) is front-facing ----
+        if (cullBackfaces) {
+            float signedArea = 0.0f;
+            for (int i = 0; i < poly.count; ++i) {
+                const Vec3& p = ndc[i];
+                const Vec3& q = ndc[(i + 1) % poly.count];
+                signedArea += p.x * q.y - q.x * p.y;
+            }
+            if (signedArea <= 0.0f) continue;
+        }
+
+        // ---- fan triangulation ----
+        for (int i = 1; i + 1 < poly.count; ++i) {
+            ScreenTriangle st;
+            st.v[0] = projected[0];
+            st.v[1] = projected[i];
+            st.v[2] = projected[i + 1];
+            st.drawIndex = drawIndex;
+
+            const float lo = std::min({st.v[0].y, st.v[1].y, st.v[2].y});
+            const float hi = std::max({st.v[0].y, st.v[1].y, st.v[2].y});
+            st.minY = std::max(0, static_cast<int>(std::floor(lo)));
+            st.maxY = std::min(height - 1, static_cast<int>(std::ceil(hi)));
+
+            if (st.minY > st.maxY) continue;
+
+            triangles.push_back(st);
+            ++currentStats.trianglesRasterized;
+        }
+    }
+}
+
