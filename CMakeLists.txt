@@ -16,17 +16,19 @@ find_package(SDL2 REQUIRED)
 # Renderer core: no SDL dependency, so it can be tested and used headless.
 add_library(irisgpu_core STATIC
     src/Framebuffer.cpp
+    src/Mesh.cpp
+    src/MeshFactory.cpp
+    src/ObjLoader.cpp
+    src/Renderer.cpp
 )
 
-target_include_directories(irisgpu PRIVATE include)
+target_include_directories(irisgpu_core PUBLIC include)
+target_link_libraries(irisgpu_core PUBLIC Threads::Threads)
+target_compile_options(irisgpu_core PRIVATE -Wall -Wextra -Wpedantic)
 
-target_link_libraries(irisgpu PRIVATE SDL2::SDL2)
-
-target_compile_options(irisgpu PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-)
+add_executable(irisgpu src/main.cpp)
+target_link_libraries(irisgpu PRIVATE irisgpu_core SDL2::SDL2)
+target_compile_options(irisgpu PRIVATE -Wall -Wextra -Wpedantic)
 
 include(CTest)
 
