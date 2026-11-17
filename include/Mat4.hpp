@@ -61,34 +61,23 @@ public:
     }
 
     static Mat4 rotationZ(float degrees) {
-        float angle = degrees * 3.14159265358979323846f / 180.0f;
-
-        float c = std::cos(angle);
-        float s = std::sin(angle);
-
-        Mat4 result = identity();
-
-        result.at(0, 0) = c;
-        result.at(0, 1) = -s;
-        result.at(1, 0) = s;
-        result.at(1, 1) = c;
-
-        return result;
+        const float a = toRadians(degrees), c = std::cos(a), s = std::sin(a);
+        Mat4 r = identity();
+        r.at(0, 0) = c;  r.at(0, 1) = -s;
+        r.at(1, 0) = s;  r.at(1, 1) = c;
+        return r;
     }
 
-    Mat4 operator*(const Mat4& other) const {
-        Mat4 result;
-
-        for (int row = 0; row < 4; ++row) {
-            for (int col = 0; col < 4; ++col) {
-                for (int k = 0; k < 4; ++k) {
-                    result.at(row, col) +=
-                        at(row, k) * other.at(k, col);
-                }
-            }
-        }
-
-        return result;
+    // Maps view space to clip space. After the perspective divide x,y,z are in [-1, 1].
+    static Mat4 perspective(float fovDegrees, float aspect, float nearPlane, float farPlane) {
+        const float f = 1.0f / std::tan(toRadians(fovDegrees) * 0.5f);
+        Mat4 r;
+        r.at(0, 0) = f / aspect;
+        r.at(1, 1) = f;
+        r.at(2, 2) = (farPlane + nearPlane) / (nearPlane - farPlane);
+        r.at(2, 3) = (2.0f * farPlane * nearPlane) / (nearPlane - farPlane);
+        r.at(3, 2) = -1.0f;
+        return r;
     }
 
     Vec3 transformPoint(const Vec3& point) const {
