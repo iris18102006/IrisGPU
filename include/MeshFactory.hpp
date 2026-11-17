@@ -1,55 +1,9 @@
-
 #pragma once
 
 #include "Mesh.hpp"
 
-inline Mesh createCubeMesh() {
-    Mesh cube;
-
-    cube.name = "Cube";
-
-    cube.vertices = {
-        Vec3(-1, -1, -1),
-        Vec3( 1, -1, -1),
-        Vec3( 1,  1, -1),
-        Vec3(-1,  1, -1),
-
-        Vec3(-1, -1,  1),
-        Vec3( 1, -1,  1),
-        Vec3( 1,  1,  1),
-        Vec3(-1,  1,  1)
-    };
-
-    const std::array<std::array<int, 3>, 12> indices = {{
-        {{0, 1, 2}}, {{0, 2, 3}},
-        {{5, 4, 7}}, {{5, 7, 6}},
-        {{4, 0, 3}}, {{4, 3, 7}},
-        {{1, 5, 6}}, {{1, 6, 2}},
-        {{3, 2, 6}}, {{3, 6, 7}},
-        {{4, 5, 1}}, {{4, 1, 0}}
-    }};
-
-    const std::array<std::array<Vec2, 3>, 12> uvs = {{
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}}
-    }};
-
-    for (int i = 0; i < 12; ++i) {
-        cube.triangles.push_back({
-            indices[i],
-            uvs[i]
-        });
-    }
-
-    return cube;
-}
+Mesh createCubeMesh();
+Mesh createSphereMesh(int stacks = 24, int slices = 48);
+Mesh createPlaneMesh(float halfSize = 10.0f, float uvTiles = 10.0f);
+Mesh createTorusMesh(float majorRadius = 1.0f, float minorRadius = 0.35f,
+                     int segments = 48, int sides = 24);
