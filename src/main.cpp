@@ -183,69 +183,49 @@ const char* modeName(ShadeMode m) {
     return "?";
 }
 
-std::vector<ClipVertex> clipAgainstPlane(
-    const std::vector<ClipVertex>& polygon,
-    float planeZ,
-    bool keepLess
-) {
-    std::vector<ClipVertex> output;
-
-    if (polygon.empty()) {
-        return output;
-    }
-
-    auto inside = [&](const ClipVertex& vertex) {
-        if (keepLess) {
-            return vertex.position.z <= planeZ;
-        }
-
-        return vertex.position.z >= planeZ;
-    };
-
-    ClipVertex previous = polygon.back();
-    bool previousInside = inside(previous);
-
-    for (const ClipVertex& current : polygon) {
-        bool currentInside = inside(current);
-
-        if (currentInside != previousInside) {
-            float denominator =
-                current.position.z - previous.position.z;
-
-            if (std::abs(denominator) > 0.000001f) {
-                float t =
-                    (planeZ - previous.position.z) / denominator;
-
-                output.push_back(interpolate(previous, current, t));
-            }
-        }
-
-        if (currentInside) {
-            output.push_back(current);
-        }
-
-        previous = current;
-        previousInside = currentInside;
-    }
-
-    return output;
+void printUsage() {
+    std::cout <<
+        "IrisGPU - CPU software renderer\n"
+        "usage: irisgpu [model.obj] [--render out.ppm] [--bench frames] [--threads N]\n\n"
+        "  model.obj          load an OBJ file into the scene\n"
+        "  --render out.ppm   render one frame without a window and exit\n"
+        "  --bench N          render N frames without a window and print timings\n"
+        "  --threads N        rasterizer threads (default: all cores)\n\n"
+        "controls: WASD move | Q/E down/up | mouse look | Shift fast | Space pause\n"
+        "          1-4 shading mode | B bilinear | C backface culling | P screenshot | ESC quit\n";
 }
 
-std::vector<Color> createCheckerTexture(int width, int height) {
-    std::vector<Color> texture(width * height);
+}  // namespace
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            bool alternate = ((x / 16) + (y / 16)) % 2 == 0;
+int main(int argc, char** argv) {
+    std::string modelPath;
+    std::string renderPath;
+    int benchFrames = 0;
+    unsigned threads = 0;
 
-            texture[y * width + x] = alternate
-                ? Color(245, 125, 65)
-                : Color(35, 35, 65);
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+
+        if (arg == "--help" || arg == "-h") {
+            printUsage();
+            return 0;
+        } else if (arg == "--render" && i + 1 < argc) {
+            renderPath = argv[++i];
+        } else if (arg == "--bench" && i + 1 < argc) {
+            benchFrames = std::atoi(argv[++i]);
+        } else if (arg == "--threads" && i + 1 < argc) {
+            threads = static_cast<unsigned>(std::max(1, std::atoi(argv[++i])));
+        } else if (!arg.empty() && arg[0] != '-') {
+            modelPath = arg;
+        } else {
+            std::cerr << "Unknown argument: " << arg << "\n\n";
+            printUsage();
+            return 1;
         }
     }
 
-    return texture;
-}
+    Scene scene;
+    if (!modelPath.empty() && !scene.loadModel(modelPath)) return 1;
 
 int main() {
     const int width = 800;
