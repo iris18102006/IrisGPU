@@ -164,27 +164,28 @@ void Framebuffer::drawTexturedTriangle3D(
         float w0 = ((b.x - px0) * (c.y - py) - (b.y - py) * (c.x - px0)) * invArea;
         float w1 = ((c.x - px0) * (a.y - py) - (c.y - py) * (a.x - px0)) * invArea;
 
-            float w1 =
-                ((c.x - px) * (a.y - py) -
-                 (c.y - py) * (a.x - px)) / area;
 
-            float w2 = 1.0f - w0 - w1;
+        for (int x = minX; x <= maxX; ++x, w0 += dw0dx, w1 += dw1dx) {
+            const float w2 = 1.0f - w0 - w1;
 
-            if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+            if (w0 < kEdgeEpsilon || w1 < kEdgeEpsilon || w2 < kEdgeEpsilon) continue;
 
-            int index = y * width + x;
-
-            float z = w0 * a.z + w1 * b.z + w2 * c.z;
+            const std::size_t index = getIndex(x, y);
+            const float z = w0 * a.z + w1 * b.z + w2 * c.z;
 
             if (z >= depthBuffer[index]) continue;
 
-            // Perspective-correct interpolation.
-            float denominator =
-                w0 * invA +
-                w1 * invB +
-                w2 * invC;
+            const float invDepth = w0 * invDa + w1 * invDb + w2 * invDc;
+            if (invDepth <= 1e-9f) continue;
+            const float inv = 1.0f / invDepth;
 
-            if (denominator <= 0.000001f) continue;
+            FragmentInput input;
+            input.uv = {
+                (w0 * ua + w1 * ub + w2 * uc) * inv,
+                (w0 * va + w1 * vb + w2 * vc) * inv
+            };
+            input.depth = inv;
+            input.normal = (na * w0 + nb * w1 + nc * w2) * inv;
 
             float u = (
                 w0 * a.u * invA +
