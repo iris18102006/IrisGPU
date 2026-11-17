@@ -11,74 +11,49 @@ namespace {
 
 std::size_t checkedPixelCount(int width, int height) {
     if (width <= 0 || height <= 0) {
-        throw std::invalid_argument(
-            "Framebuffer dimensions must be positive"
-        );
+        throw std::invalid_argument("Framebuffer dimensions must be positive");
     }
 
     const auto w = static_cast<std::size_t>(width);
     const auto h = static_cast<std::size_t>(height);
 
     if (w > std::numeric_limits<std::size_t>::max() / h) {
-        throw std::length_error(
-            "Framebuffer dimensions overflow"
-        );
+        throw std::length_error("Framebuffer dimensions overflow");
     }
 
     return w * h;
 }
 
-}
+constexpr float kEdgeEpsilon = -1e-4f;  // tiny tolerance so shared edges leave no cracks
+
+}  // namespace
 
 Framebuffer::Framebuffer(int width, int height)
     : width(width),
       height(height),
       pixels(checkedPixelCount(width, height)),
-      depthBuffer(
-          pixels.size(),
-          std::numeric_limits<float>::infinity()
-      ) {}
+      depthBuffer(pixels.size(), std::numeric_limits<float>::infinity()) {}
 
 void Framebuffer::clear(const Color& color) {
     std::fill(pixels.begin(), pixels.end(), color);
-
-    std::fill(
-        depthBuffer.begin(),
-        depthBuffer.end(),
-        std::numeric_limits<float>::infinity()
-    );
+    std::fill(depthBuffer.begin(), depthBuffer.end(), std::numeric_limits<float>::infinity());
 }
 
-void Framebuffer::setPixel(
-    int x,
-    int y,
-    const Color& color
-) {
-    if (x < 0 || x >= width || y < 0 || y >= height) {
-        return;
-    }
-
-    pixels[y * width + x] = color;
+void Framebuffer::setPixel(int x, int y, const Color& color) {
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    pixels[getIndex(x, y)] = color;
 }
 
 void Framebuffer::drawTriangle(
-    int x0, int y0,
-    int x1, int y1,
-    int x2, int y2,
-    const Color& color
+    int x0, int y0, int x1, int y1, int x2, int y2, const Color& color
 ) {
-    float area = static_cast<float>(
-        (x1 - x0) * (y2 - y0) -
-        (y1 - y0) * (x2 - x0)
-    );
-
+    const float area = static_cast<float>((x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0));
     if (std::abs(area) < 0.0001f) return;
 
-    int minX = std::max(0, std::min({x0, x1, x2}));
-    int maxX = std::min(width - 1, std::max({x0, x1, x2}));
-
-    int minY = std::max(0, std::min({y0, y1, y2}));
-    int maxY = std::min(height - 1, std::max({y0, y1, y2}));
+    const int minX = std::max(0, std::min({x0, x1, x2}));
+    const int maxX = std::min(width - 1, std::max({x0, x1, x2}));
+    const int minY = std::max(0, std::min({y0, y1, y2}));
+    const int maxY = std::min(height - 1, std::max({y0, y1, y2}));
 
     for (int y = minY; y <= maxY; ++y) {
         for (int x = minX; x <= maxX; ++x) {
