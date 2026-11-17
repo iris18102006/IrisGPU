@@ -227,10 +227,44 @@ int main(int argc, char** argv) {
     Scene scene;
     if (!modelPath.empty() && !scene.loadModel(modelPath)) return 1;
 
-int main() {
-    const int width = 800;
-    const int height = 600;
+    Framebuffer framebuffer(kWidth, kHeight);
+    Renderer renderer(framebuffer, threads);
 
+    ShaderUniforms uniforms;
+    const FragmentShader shader = shadeFragment;
+
+    // ---- headless modes (no SDL needed at runtime) ----
+    if (!renderPath.empty() || benchFrames > 0) {
+        Camera camera = defaultCamera();
+
+        if (benchFrames > 0) {
+            using Clock = std::chrono::steady_clock;
+            const auto start = Clock::now();
+
+            for (int f = 0; f < benchFrames; ++f) {
+                renderFrame(renderer, scene, camera, uniforms, shader, static_cast<float>(f) / 60.0f);
+            }
+
+            const double ms = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+            std::cout << benchFrames << " frames, " << renderer.threadCount() << " threads: "
+                      << ms / benchFrames << " ms/frame (" << 1000.0 * benchFrames / ms << " fps), "
+                      << renderer.stats().trianglesRasterized << " triangles rasterized\n";
+        } else {
+            renderFrame(renderer, scene, camera, uniforms, shader, 1.2f);
+        }
+
+        if (!renderPath.empty()) {
+            if (!framebuffer.savePPM(renderPath)) {
+                std::cerr << "Could not write " << renderPath << '\n';
+                return 1;
+            }
+            std::cout << "Wrote " << renderPath << '\n';
+        }
+
+        return 0;
+    }
+
+    // ---- interactive mode ----
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL error: " << SDL_GetError() << '\n';
         return 1;
