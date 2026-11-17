@@ -46,12 +46,26 @@ enum class ShadeMode : int {
 };
 
 struct ShaderUniforms {
-    Mat4 model;
-    Vec3 cameraPosition;
+    // Matrices (filled in by the Renderer for every draw call).
+    Mat4 model = Mat4::identity();
+    Mat4 view = Mat4::identity();
+    Mat4 projection = Mat4::identity();
+    Mat4 modelView = Mat4::identity();
+    Mat4 mvp = Mat4::identity();
 
+    Vec3 cameraPosition;
     float yaw = 0.0f;
     float pitch = 0.0f;
     float time = 0.0f;
+
+    // Lighting (view space; lightDirection points TOWARD the light).
+    Vec3 lightDirection = Vec3(0.4f, 0.8f, 0.5f);
+    float ambient = 0.18f;
+    float specularStrength = 0.35f;
+    float shininess = 32.0f;
+
+    ShadeMode mode = ShadeMode::TexturedLit;
+    bool bilinear = true;
 
     const std::vector<Color>* texture = nullptr;
 
