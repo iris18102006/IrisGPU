@@ -358,225 +358,50 @@ int main(int argc, char** argv) {
         }
 
         const Uint8* keys = SDL_GetKeyboardState(nullptr);
+        const bool fast = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
+        const float step = (fast ? 12.0f : 4.0f) * dt;
 
-        float movement = movementSpeed * deltaTime;
+        const Vec3 forward = camera.forward();
+        const Vec3 right = camera.right();
 
-        Vec3 forward = normalize(Vec3(
-            std::sin(yaw) * std::cos(pitch),
-            std::sin(pitch),
-            -std::cos(yaw) * std::cos(pitch)
-        ));
+        if (keys[SDL_SCANCODE_W]) camera.position += forward * step;
+        if (keys[SDL_SCANCODE_S]) camera.position -= forward * step;
+        if (keys[SDL_SCANCODE_D]) camera.position += right * step;
+        if (keys[SDL_SCANCODE_A]) camera.position -= right * step;
+        if (keys[SDL_SCANCODE_E]) camera.position.y += step;
+        if (keys[SDL_SCANCODE_Q]) camera.position.y -= step;
 
-        Vec3 right = normalize(Vec3(
-            std::cos(yaw),
-            0,
-            std::sin(yaw)
-        ));
+        if (!paused) sceneTime += dt;
 
-        if (keys[SDL_SCANCODE_W])
-            cameraPosition = add(cameraPosition, multiply(forward, movement));
+        renderFrame(renderer, scene, camera, uniforms, shader, sceneTime);
 
-        if (keys[SDL_SCANCODE_S])
-            cameraPosition = subtract(cameraPosition, multiply(forward, movement));
+        SDL_UpdateTexture(displayTexture, nullptr, framebuffer.getPixels(),
+                          kWidth * static_cast<int>(sizeof(Color)));
+        SDL_RenderClear(sdlRenderer);
+        SDL_RenderCopy(sdlRenderer, displayTexture, nullptr, nullptr);
+        SDL_RenderPresent(sdlRenderer);
 
-        if (keys[SDL_SCANCODE_D])
-            cameraPosition = add(cameraPosition, multiply(right, movement));
+        titleTimer += dt;
+        ++titleFrames;
 
-        if (keys[SDL_SCANCODE_A])
-            cameraPosition = subtract(cameraPosition, multiply(right, movement));
-
-        if (keys[SDL_SCANCODE_E])
-            cameraPosition.y += movement;
-
-        if (keys[SDL_SCANCODE_Q])
-            cameraPosition.y -= movement;
-
-        framebuffer.clear(Color(15, 15, 25));
-
-        Mat4 model =
-            Mat4::translation(Vec3(0, 0, -5)) *
-            Mat4::rotationY(angle) *
-            Mat4::rotationX(angle * 0.7f);
-
-        // Shader uniforms are updated every frame.
-        ShaderUniforms uniforms;
-
-        uniforms.model = model;
-        uniforms.cameraPosition = cameraPosition;
-        uniforms.yaw = yaw;
-        uniforms.pitch = pitch;
-        uniforms.time = angle;
-
-        uniforms.texture = &texture;
-        uniforms.textureWidth = textureWidth;
-        uniforms.textureHeight = textureHeight;
-
-        std::array<Vec3, 8> worldVertices;
-        std::array<Vec3, 8> viewVertices;
-
-        // Execute the vertex shader for every cube vertex.
-        for (int i = 0; i < 8; ++i) {
-            worldVertices[i] = model.transformPoint(vertices[i]);
-
-            Vertex input{
-                vertices[i],
-                {0.0f, 0.0f}
-            };
-
-            VertexOutput output = vertexShader(input, uniforms);
-
-            viewVertices[i] = output.position;
-        }
-
-        Vec3 cubeCenter = model.transformPoint(Vec3(0, 0, 0));
-
-        for (int i = 0; i < 12; ++i) {
-            int ia = triangles[i][0];
-            int ib = triangles[i][1];
-            int ic = triangles[i][2];
-
-            Vec3 a = worldVertices[ia];
-            Vec3 b = worldVertices[ib];
-            Vec3 c = worldVertices[ic];
-
-            Vec3 normal = normalize(
-                cross(subtract(b, a), subtract(c, a))
-            );
-
-            Vec3 faceCenter(
-                (a.x + b.x + c.x) / 3.0f,
-                (a.y + b.y + c.y) / 3.0f,
-                (a.z + b.z + c.z) / 3.0f
-            );
-
-            Vec3 outward = subtract(faceCenter, cubeCenter);
-
-            if (dot(normal, outward) < 0.0f) {
-                normal = multiply(normal, -1.0f);
-            }
-
-            Vec3 viewA = viewVertices[ia];
-            Vec3 viewB = viewVertices[ib];
-            Vec3 viewC = viewVertices[ic];
-
-            Vec3 viewCenter(
-                (viewA.x + viewB.x + viewC.x) / 3.0f,
-                (viewA.y + viewB.y + viewC.y) / 3.0f,
-                (viewA.z + viewB.z + viewC.z) / 3.0f
-            );
-
-            Vec3 viewNormal;
-            worldToCamera(
-                add(faceCenter, normal),
-                cameraPosition,
-                yaw,
-                pitch,
-                viewNormal
-            );
-
-            Vec3 viewNormalDirection = normalize(
-                subtract(viewNormal, viewCenter)
-            );
-
-            Vec3 viewDirection = normalize(
-                multiply(viewCenter, -1.0f)
-            );
-
-            // Backface culling.
-            if (dot(viewNormalDirection, viewDirection) <= 0.0f) {
-                continue;
-            }
-
-            std::vector<ClipVertex> polygon = {
-                {viewA, uvs[i][0]},
-                {viewB, uvs[i][1]},
-                {viewC, uvs[i][2]}
-            };
-
-            // Near-plane clipping.
-            polygon = clipAgainstPlane(
-                polygon,
-                -NEAR_PLANE - CLIP_EPSILON,
-                true
-            );
-
-            // Far-plane clipping.
-            polygon = clipAgainstPlane(
-                polygon,
-                -FAR_PLANE + CLIP_EPSILON,
-                false
-            );
-
-            if (polygon.size() < 3) {
-                continue;
-            }
-
-            std::vector<TexturedVertex> projected;
-            projected.reserve(polygon.size());
-
-            for (const ClipVertex& vertex : polygon) {
-                Vec3 point = Projection::perspective(
-                    vertex.position,
-                    90.0f,
-                    aspectRatio,
-                    NEAR_PLANE,
-                    FAR_PLANE
-                );
-
-                Vec3 screen = Viewport::toScreen(
-                    point,
-                    width,
-                    height
-                );
-
-                projected.push_back({
-                    screen.x,
-                    screen.y,
-                    screen.z,
-                    -vertex.position.z,
-                    vertex.uv.u,
-                    vertex.uv.v
-                });
-            }
-
-            // Triangulate clipped polygon and execute fragment shader.
-            for (std::size_t j = 1; j + 1 < projected.size(); ++j) {
-                framebuffer.drawTexturedTriangle3D(
-                    projected[0],
-                    projected[j],
-                    projected[j + 1],
-                    fragmentShader,
-                    uniforms
-                );
-            }
-        }
-
-        SDL_UpdateTexture(
-            displayTexture,
-            nullptr,
-            framebuffer.getPixels(),
-            width * static_cast<int>(sizeof(Color))
-        );
-
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, displayTexture, nullptr, nullptr);
-        SDL_RenderPresent(renderer);
-
-        angle += 0.6f * deltaTime;
-
-        if (angle >= 2.0f * PI) {
-            angle -= 2.0f * PI;
+        if (titleTimer >= 0.5) {
+            const std::string title =
+                "IrisGPU | " + std::to_string(static_cast<int>(titleFrames / titleTimer)) + " fps | " +
+                std::to_string(renderer.stats().trianglesRasterized) + " tris | " +
+                std::to_string(renderer.threadCount()) + " threads | " + modeName(uniforms.mode) +
+                (uniforms.bilinear ? " | bilinear" : " | nearest") +
+                (renderer.backfaceCulling() ? "" : " | no cull");
+            SDL_SetWindowTitle(window, title.c_str());
+            titleTimer = 0.0;
+            titleFrames = 0;
         }
     }
 
     SDL_SetRelativeMouseMode(SDL_FALSE);
-
     SDL_DestroyTexture(displayTexture);
-    SDL_DestroyRenderer(renderer);
+    SDL_DestroyRenderer(sdlRenderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
-    std::cout << "IrisGPU: Renderer stopped.\n";
 
     return 0;
 }
