@@ -47,3 +47,52 @@ void clipAgainstPlane(const Polygon& in, Polygon& out, int plane) {
     out.count = 0;
     if (in.count == 0) return;
 
+    const ClipVertex* prev = &in.v[in.count - 1];
+    float prevDist = planeDistance(plane, prev->clip);
+
+    for (int i = 0; i < in.count; ++i) {
+        const ClipVertex& cur = in.v[i];
+        const float curDist = planeDistance(plane, cur.clip);
+
+        if ((curDist >= 0.0f) != (prevDist >= 0.0f)) {
+            const float t = prevDist / (prevDist - curDist);
+            if (out.count < kMaxPolygon) out.v[out.count++] = lerpVertex(*prev, cur, t);
+        }
+
+        if (curDist >= 0.0f && out.count < kMaxPolygon) out.v[out.count++] = cur;
+
+        prev = &cur;
+        prevDist = curDist;
+    }
+}
+
+VertexOutput defaultVertexShader(const Vertex& in, const ShaderUniforms& u) {
+    VertexOutput out;
+    out.clipPosition = u.mvp * Vec4(in.position, 1.0f);
+    out.uv = in.uv;
+    out.normal = normalize(u.modelView.transformDirection(in.normal));
+    return out;
+}
+
+}  // namespace
+
+Renderer::Renderer(Framebuffer& target, unsigned threadCount)
+    : framebuffer(target),
+      threads(threadCount != 0 ? threadCount : std::max(1u, std::thread::hardware_concurrency())) {}
+
+void Renderer::beginFrame(const Color& clearColor) {
+    framebuffer.clear(clearColor);
+    drawCalls.clear();
+    triangles.clear();
+    currentStats = {};
+}
+
+void Renderer::draw(
+    const MeshInstance& instance,
+    const Camera& camera,
+    const ShaderUniforms& baseUniforms,
+    const FragmentShader& fragmentShader,
+    const VertexShader* vertexShader
+) {
+    if (!instance.mesh || !fragmentShader) return;
+
