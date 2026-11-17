@@ -51,7 +51,7 @@ public:
         const Color& color
     );
 
-    // Existing texture-rendering interface.
+    // Texture-only convenience overload.
     void drawTexturedTriangle3D(
         const TexturedVertex& a,
         const TexturedVertex& b,
@@ -61,13 +61,16 @@ public:
         int textureHeight
     );
 
-    // Programmable fragment-shader interface.
+    // Programmable fragment shader. Only rows in [yMin, yMax) are touched, which lets
+    // several threads rasterize into disjoint horizontal bands of the same framebuffer.
     void drawTexturedTriangle3D(
         const TexturedVertex& a,
         const TexturedVertex& b,
         const TexturedVertex& c,
         const FragmentShader& fragmentShader,
-        const ShaderUniforms& uniforms
+        const ShaderUniforms& uniforms,
+        int yMin = 0,
+        int yMax = -1
     );
 
     bool savePPM(const std::string& filename) const;
