@@ -1,51 +1,56 @@
-
+#include "Camera.hpp"
 #include "Framebuffer.hpp"
+#include "MeshFactory.hpp"
+#include "ObjLoader.hpp"
+#include "Renderer.hpp"
 #include "Shader.hpp"
-#include "Vec3.hpp"
-#include "Mat4.hpp"
-#include "Projection.hpp"
-#include "Viewport.hpp"
 
 #include <SDL2/SDL.h>
 
-#include <iostream>
-#include <array>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <string>
 #include <vector>
 
-constexpr float PI = 3.14159265358979323846f;
-constexpr float NEAR_PLANE = 0.1f;
-constexpr float FAR_PLANE = 100.0f;
-constexpr float CLIP_EPSILON = 0.0001f;
+static_assert(sizeof(Color) == 3, "Color must be tightly packed RGB24 for SDL");
 
-struct ClipVertex {
-    Vec3 position;
-    Vec2 uv;
-};
+namespace {
 
-Vec3 subtract(const Vec3& a, const Vec3& b) {
-    return Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
+constexpr int kWidth = 800;
+constexpr int kHeight = 600;
+constexpr float kPi = 3.14159265358979323846f;
+const Color kBackground(15, 15, 25);
 
-Vec3 add(const Vec3& a, const Vec3& b) {
-    return Vec3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
+// ---------------------------------------------------------------------------
+// Fragment shader: Blinn-Phong lighting + distance fog, with a few debug modes.
+// ---------------------------------------------------------------------------
+Color shadeFragment(const FragmentInput& in, const ShaderUniforms& u) {
+    const Vec3 n = normalize(in.normal);
 
-Vec3 multiply(const Vec3& v, float s) {
-    return Vec3(v.x * s, v.y * s, v.z * s);
-}
+    auto toColor = [](float r, float g, float b) {
+        auto c = [](float x) {
+            return static_cast<std::uint8_t>(std::clamp(x, 0.0f, 1.0f) * 255.0f + 0.5f);
+        };
+        return Color(c(r), c(g), c(b));
+    };
 
-float dot(const Vec3& a, const Vec3& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
+    switch (u.mode) {
+        case ShadeMode::Normals:
+            return toColor(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f);
 
-Vec3 cross(const Vec3& a, const Vec3& b) {
-    return Vec3(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x
+        case ShadeMode::Depth: {
+            const float d = 1.0f - std::clamp(in.depth / 25.0f, 0.0f, 1.0f);
+            return toColor(d, d, d);
+        }
+
+        case ShadeMode::TexturedFlat:
+            return sampleTexture(u, in.uv);
+
     );
 }
 
