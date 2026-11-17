@@ -71,3 +71,25 @@ Mesh createSphereMesh(int stacks, int slices) {
         }
     }
 
+    auto idx = [&](int i, int j) { return i * slices + (j % slices); };
+    auto uv = [&](int i, int j) {
+        return Vec2{static_cast<float>(j) / static_cast<float>(slices),
+                    static_cast<float>(i) / static_cast<float>(stacks)};
+    };
+
+    auto addTri = [&](int i0, int j0, int i1, int j1, int i2, int j2) {
+        MeshTriangle t;
+        t.indices = {idx(i0, j0), idx(i1, j1), idx(i2, j2)};
+        t.uvs = {uv(i0, j0), uv(i1, j1), uv(i2, j2)};
+        for (int k = 0; k < 3; ++k) t.normals[k] = normalize(m.vertices[t.indices[k]]);
+        m.triangles.push_back(t);
+    };
+
+    for (int i = 0; i < stacks; ++i) {
+        for (int j = 0; j < slices; ++j) {
+            // Poles collapse one of the two triangles to a sliver; skip it.
+            if (i != stacks - 1) addTri(i, j, i + 1, j + 1, i + 1, j);
+            if (i != 0) addTri(i, j, i, j + 1, i + 1, j + 1);
+        }
+    }
+
