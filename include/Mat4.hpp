@@ -36,66 +36,28 @@ public:
         return r;
     }
 
-    static Mat4 identity() {
-        Mat4 result;
-
-        for (int i = 0; i < 4; ++i) {
-            result.at(i, i) = 1.0f;
-        }
-
-        return result;
-    }
-
-    static Mat4 translation(const Vec3& offset) {
-        Mat4 result = identity();
-
-        result.at(0, 3) = offset.x;
-        result.at(1, 3) = offset.y;
-        result.at(2, 3) = offset.z;
-
-        return result;
-    }
-
-    static Mat4 scaling(const Vec3& factors) {
-        Mat4 result = identity();
-
-        result.at(0, 0) = factors.x;
-        result.at(1, 1) = factors.y;
-        result.at(2, 2) = factors.z;
-
-        return result;
+    static Mat4 scaling(const Vec3& f) {
+        Mat4 r = identity();
+        r.at(0, 0) = f.x;
+        r.at(1, 1) = f.y;
+        r.at(2, 2) = f.z;
+        return r;
     }
 
     static Mat4 rotationX(float degrees) {
-        float angle = degrees * 3.14159265358979323846f / 180.0f;
-
-        float c = std::cos(angle);
-        float s = std::sin(angle);
-
-        Mat4 result = identity();
-
-        result.at(1, 1) = c;
-        result.at(1, 2) = -s;
-        result.at(2, 1) = s;
-        result.at(2, 2) = c;
-
-        return result;
+        const float a = toRadians(degrees), c = std::cos(a), s = std::sin(a);
+        Mat4 r = identity();
+        r.at(1, 1) = c;  r.at(1, 2) = -s;
+        r.at(2, 1) = s;  r.at(2, 2) = c;
+        return r;
     }
 
     static Mat4 rotationY(float degrees) {
-        float angle = degrees * 3.14159265358979323846f / 180.0f;
-
-        float c = std::cos(angle);
-        float s = std::sin(angle);
-
-        Mat4 result = identity();
-
-        result.at(0, 0) = c;
-        result.at(0, 2) = s;
-        result.at(2, 0) = -s;
-        result.at(2, 2) = c;
-
-        return result;
+        const float a = toRadians(degrees), c = std::cos(a), s = std::sin(a);
+        Mat4 r = identity();
+        r.at(0, 0) = c;  r.at(0, 2) = s;
+        r.at(2, 0) = -s; r.at(2, 2) = c;
+        return r;
     }
 
     static Mat4 rotationZ(float degrees) {
