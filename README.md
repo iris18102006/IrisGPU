@@ -72,3 +72,22 @@ ctest --test-dir build --output-on-failure
 | P | save screenshot (`.ppm`) |
 | Esc | quit |
 
+## Project layout
+
+```
+include/   Vec3, Vec4, Mat4, Camera, Shader, Mesh, Framebuffer, Renderer, ...
+src/       Framebuffer (rasterizer), Renderer (pipeline), meshes, OBJ loader, main
+tests/     Framebuffer + core (math, meshes, OBJ, renderer) tests
+assets/    Example OBJ model
+```
+
+`irisgpu_core` is a static library with no SDL dependency, so the renderer can be
+tested and run headless.
+
+## Ideas for next steps
+
+- Normal mapping and shadow mapping
+- Mipmaps / trilinear filtering
+- SIMD (or tiled) rasterization
+- Texture loading from PNG (stb_image)
+- Wireframe and point-light modes
