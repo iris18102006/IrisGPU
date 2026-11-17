@@ -24,3 +24,27 @@ void Mesh::computeFlatNormals() {
         const Vec3& b = vertices[tri.indices[1]];
         const Vec3& c = vertices[tri.indices[2]];
 
+        const Vec3 n = normalize(cross(b - a, c - a));
+        tri.normals = {n, n, n};
+    }
+}
+
+void Mesh::computeSmoothNormals() {
+    std::vector<Vec3> accum(vertices.size());
+
+    for (const MeshTriangle& tri : triangles) {
+        const Vec3& a = vertices[tri.indices[0]];
+        const Vec3& b = vertices[tri.indices[1]];
+        const Vec3& c = vertices[tri.indices[2]];
+
+        const Vec3 weighted = cross(b - a, c - a);  // length ~ 2 * area
+        for (int i = 0; i < 3; ++i) accum[tri.indices[i]] += weighted;
+    }
+
+    for (Vec3& n : accum) n = normalize(n);
+
+    for (MeshTriangle& tri : triangles) {
+        for (int i = 0; i < 3; ++i) tri.normals[i] = accum[tri.indices[i]];
+    }
+}
+
