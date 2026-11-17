@@ -67,3 +67,75 @@ bool testLookAt() {
 bool testPerspectiveMapsNearFar() {
     const Mat4 p = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);
 
+    const Vec4 nearP = p * Vec4(0, 0, -0.1f, 1);
+    const Vec4 farP = p * Vec4(0, 0, -100.0f, 1);
+
+    return near(nearP.z / nearP.w, -1.0f) &&
+           near(farP.z / farP.w, 1.0f, 1e-3f) &&
+           near(nearP.w, 0.1f) &&
+           near(farP.w, 100.0f);
+}
+
+bool testPerspectiveFov() {
+    // With a 90 degree FOV, a point at x == -z lands on the right edge of NDC.
+    const Mat4 p = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);
+    const Vec4 c = p * Vec4(2, 0, -2, 1);
+    return near(c.x / c.w, 1.0f);
+}
+
+bool testCameraForward() {
+    Camera c;
+    return near(c.forward(), Vec3(0, 0, -1)) && near(c.right(), Vec3(1, 0, 0));
+}
+
+// ---------------- Meshes ----------------
+
+// Every triangle must be wound CCW seen from outside, i.e. its geometric normal
+// agrees with the stored (outward) per-corner normals.
+bool windingMatchesNormals(const Mesh& m) {
+    int checked = 0;
+
+    for (const MeshTriangle& t : m.triangles) {
+        const Vec3& a = m.vertices[t.indices[0]];
+        const Vec3& b = m.vertices[t.indices[1]];
+        const Vec3& c = m.vertices[t.indices[2]];
+
+        const Vec3 geometric = cross(b - a, c - a);
+        if (length(geometric) < 1e-6f) continue;  // pole slivers
+
+        const Vec3 stored = t.normals[0] + t.normals[1] + t.normals[2];
+        if (dot(geometric, stored) <= 0.0f) return false;
+        ++checked;
+    }
+
+    return checked > 0;
+}
+
+bool testCubeMesh() {
+    const Mesh cube = createCubeMesh();
+    if (cube.triangles.size() != 12) return false;
+
+    for (const MeshTriangle& t : cube.triangles) {
+        const Vec3 centroid = (cube.vertices[t.indices[0]] +
+                               cube.vertices[t.indices[1]] +
+                               cube.vertices[t.indices[2]]) / 3.0f;
+        if (dot(t.normals[0], centroid) <= 0.0f) return false;  // must point away from the center
+    }
+
+    return windingMatchesNormals(cube);
+}
+
+bool testSphereMesh() {
+    const Mesh s = createSphereMesh(12, 24);
+    for (const Vec3& v : s.vertices) {
+        if (!near(length(v), 1.0f)) return false;
+    }
+    return windingMatchesNormals(s);
+}
+
+bool testTorusMesh() { return windingMatchesNormals(createTorusMesh(1.0f, 0.35f, 24, 12)); }
+bool testPlaneMesh() {
+    const Mesh p = createPlaneMesh();
+    return windingMatchesNormals(p) && near(p.triangles[0].normals[0], Vec3(0, 1, 0));
+}
+
