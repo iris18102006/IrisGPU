@@ -51,3 +51,54 @@ bool parseCorner(const std::string& token, Corner& out, int vCount, int vtCount,
     return true;
 }
 
+}  // namespace
+
+bool parseObj(std::istream& input, Mesh& out, std::string* error) {
+    out = Mesh{};
+
+    std::vector<Vec2> uvs;
+    std::vector<Vec3> normals;
+    bool anyMissingNormal = false;
+
+    std::string line;
+    int lineNumber = 0;
+
+    auto fail = [&](const std::string& message) {
+        if (error) *error = "line " + std::to_string(lineNumber) + ": " + message;
+        return false;
+    };
+
+    while (std::getline(input, line)) {
+        ++lineNumber;
+
+        std::istringstream ss(line);
+        std::string tag;
+        ss >> tag;
+
+        if (tag == "v") {
+            Vec3 p;
+            if (!(ss >> p.x >> p.y >> p.z)) return fail("bad vertex");
+            out.vertices.push_back(p);
+        } else if (tag == "vt") {
+            Vec2 t;
+            if (!(ss >> t.u >> t.v)) return fail("bad texcoord");
+            uvs.push_back(t);
+        } else if (tag == "vn") {
+            Vec3 n;
+            if (!(ss >> n.x >> n.y >> n.z)) return fail("bad normal");
+            normals.push_back(n);
+        } else if (tag == "f") {
+            std::vector<Corner> face;
+            std::string token;
+
+            while (ss >> token) {
+                Corner c;
+                if (!parseCorner(token, c,
+                                 static_cast<int>(out.vertices.size()),
+                                 static_cast<int>(uvs.size()),
+                                 static_cast<int>(normals.size()))) {
+                    return fail("bad face index '" + token + "'");
+                }
+                face.push_back(c);
+            }
+
