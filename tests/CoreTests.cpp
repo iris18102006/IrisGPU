@@ -269,3 +269,74 @@ bool testRendererCullsBackFace() {
     return culled && drawnWhenDisabled;
 }
 
+bool testRendererClipsNearPlane() {
+    Framebuffer fb(64, 64);
+    Renderer r(fb, 1);
+
+    // Camera at z=3 looking down -Z. One vertex sits BEHIND the camera (z=5).
+    const Mesh tri = singleTriangle(Vec3(-2, -1, 0), Vec3(2, -1, 0), Vec3(0, 1, 5));
+    MeshInstance inst;
+    inst.mesh = &tri;
+
+    const FragmentShader shader = solidRed();
+    r.beginFrame(kBg);
+    r.draw(inst, frontCamera(), ShaderUniforms{}, shader);
+    r.endFrame();
+
+    // Must not crash, must produce a finite, non-empty, non-total result.
+    const std::size_t red = countColor(fb, kRed);
+    return red > 0 && red < 64u * 64u;
+}
+
+bool testRendererRejectsBehindCamera() {
+    Framebuffer fb(64, 64);
+    Renderer r(fb, 1);
+
+    const Mesh tri = singleTriangle(Vec3(-1, -1, 10), Vec3(1, -1, 10), Vec3(0, 1, 10));
+    MeshInstance inst;
+    inst.mesh = &tri;
+
+    const FragmentShader shader = solidRed();
+    r.beginFrame(kBg);
+    r.draw(inst, frontCamera(), ShaderUniforms{}, shader);
+    r.endFrame();
+
+    return countColor(fb, kRed) == 0 && r.stats().trianglesRasterized == 0;
+}
+
+bool testRendererDepthOrdering() {
+    Framebuffer fb(64, 64);
+    Renderer r(fb, 1);
+
+    const Mesh nearTri = singleTriangle(Vec3(-1, -1, 0), Vec3(1, -1, 0), Vec3(0, 1, 0));
+    const Mesh farTri = singleTriangle(Vec3(-2, -2, -3), Vec3(2, -2, -3), Vec3(0, 2, -3));
+
+    MeshInstance nearInst, farInst;
+    nearInst.mesh = &nearTri;
+    farInst.mesh = &farTri;
+
+    const FragmentShader red = solidRed();
+    const FragmentShader blue = [](const FragmentInput&, const ShaderUniforms&) { return Color(0, 0, 255); };
+
+    // Draw the near one first, then the far one: the far one must not overwrite it.
+    r.beginFrame(kBg);
+    r.draw(nearInst, frontCamera(), ShaderUniforms{}, red);
+    r.draw(farInst, frontCamera(), ShaderUniforms{}, blue);
+    r.endFrame();
+    const Color a = *fb.getPixel(32, 36);
+
+    // Reverse order, same result.
+    r.beginFrame(kBg);
+    r.draw(farInst, frontCamera(), ShaderUniforms{}, blue);
+    r.draw(nearInst, frontCamera(), ShaderUniforms{}, red);
+    r.endFrame();
+    const Color b = *fb.getPixel(32, 36);
+
+    return a == kRed && b == kRed;
+}
+
+bool testPerspectiveCorrectUV() {
+    // A floor receding into the distance: halfway across the screen is NOT halfway in UV space.
+    Framebuffer fb(64, 64);
+    Renderer r(fb, 1);
+
