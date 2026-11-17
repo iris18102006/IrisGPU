@@ -340,3 +340,69 @@ bool testPerspectiveCorrectUV() {
     Framebuffer fb(64, 64);
     Renderer r(fb, 1);
 
+    Mesh quad = createPlaneMesh(5.0f, 1.0f);
+    MeshInstance inst;
+    inst.mesh = &quad;
+    inst.position = Vec3(0, -1, -6);
+
+    Camera cam;
+    cam.position = Vec3(0, 0, 0);
+
+    float lowestV = 2.0f, highestV = -1.0f;
+    const FragmentShader probe = [&](const FragmentInput& in, const ShaderUniforms&) {
+        lowestV = std::min(lowestV, in.uv.v);
+        highestV = std::max(highestV, in.uv.v);
+        return kRed;
+    };
+
+    r.beginFrame(kBg);
+    r.draw(inst, cam, ShaderUniforms{}, probe);
+    r.endFrame();
+
+    // UVs must stay inside the quad's [0,1] range (no extrapolation from bad clipping/interpolation).
+    return highestV <= 1.001f && lowestV >= -0.001f && highestV - lowestV > 0.5f;
+}
+
+bool testThreadedMatchesSingleThreaded() {
+    const Mesh sphere = createSphereMesh(24, 48);
+    const Mesh cube = createCubeMesh();
+
+    auto render = [&](unsigned threads) {
+        Framebuffer fb(160, 120);
+        Renderer r(fb, threads);
+
+        Camera cam;
+        cam.position = Vec3(0, 0.5f, 4);
+
+        MeshInstance s, c;
+        s.mesh = &sphere;
+        c.mesh = &cube;
+        c.position = Vec3(1.2f, 0, 0.5f);
+        c.rotation = Vec3(20, 35, 0);
+
+        const FragmentShader shader = [](const FragmentInput& in, const ShaderUniforms&) {
+            const Vec3 n = normalize(in.normal);
+            return Color(static_cast<std::uint8_t>((n.x * 0.5f + 0.5f) * 255),
+                         static_cast<std::uint8_t>((n.y * 0.5f + 0.5f) * 255),
+                         static_cast<std::uint8_t>((n.z * 0.5f + 0.5f) * 255));
+        };
+
+        r.beginFrame(kBg);
+        r.draw(s, cam, ShaderUniforms{}, shader);
+        r.draw(c, cam, ShaderUniforms{}, shader);
+        r.endFrame();
+
+        return std::vector<Color>(fb.getPixels(), fb.getPixels() + 160 * 120);
+    };
+
+    const std::vector<Color> single = render(1);
+    const std::vector<Color> multi = render(4);
+
+    return single == multi && std::count(single.begin(), single.end(), kBg) < 160 * 120;
+}
+
+bool testSphereRendersRound() {
+    Framebuffer fb(96, 96);
+    Renderer r(fb, 1);
+    const Mesh sphere = createSphereMesh(24, 48);
+
