@@ -33,21 +33,10 @@ target_compile_options(irisgpu PRIVATE -Wall -Wextra -Wpedantic)
 include(CTest)
 
 if(BUILD_TESTING)
-    add_executable(irisgpu_tests
-        tests/FramebufferTests.cpp
-        src/Framebuffer.cpp
-    )
-
-    target_include_directories(irisgpu_tests PRIVATE include)
-
-    target_compile_options(irisgpu_tests PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-    )
-
-    add_test(
-        NAME FramebufferTests
-        COMMAND irisgpu_tests
-    )
+    foreach(test_name FramebufferTests CoreTests)
+        add_executable(irisgpu_${test_name} tests/${test_name}.cpp)
+        target_link_libraries(irisgpu_${test_name} PRIVATE irisgpu_core)
+        target_compile_options(irisgpu_${test_name} PRIVATE -Wall -Wextra -Wpedantic)
+        add_test(NAME ${test_name} COMMAND irisgpu_${test_name})
+    endforeach()
 endif()
