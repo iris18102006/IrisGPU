@@ -111,3 +111,20 @@ inline Color sampleBilinear(const std::vector<Color>& tex, int w, int h, float u
         return static_cast<std::uint8_t>(std::clamp(top * (1 - ty) + bot * ty, 0.0f, 255.0f) + 0.5f);
     };
 
+    return Color(
+        mix(c00.r, c10.r, c01.r, c11.r),
+        mix(c00.g, c10.g, c01.g, c11.g),
+        mix(c00.b, c10.b, c01.b, c11.b)
+    );
+}
+
+inline Color sampleTexture(const ShaderUniforms& u, const Vec2& uv) {
+    if (!u.texture || u.textureWidth <= 0 || u.textureHeight <= 0 ||
+        u.texture->size() < static_cast<std::size_t>(u.textureWidth) * u.textureHeight) {
+        return Color(255, 0, 255);  // missing-texture magenta
+    }
+
+    return u.bilinear
+        ? sampleBilinear(*u.texture, u.textureWidth, u.textureHeight, uv.u, uv.v)
+        : sampleNearest(*u.texture, u.textureWidth, u.textureHeight, uv.u, uv.v);
+}
