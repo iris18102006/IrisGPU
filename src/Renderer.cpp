@@ -233,3 +233,47 @@ void Renderer::draw(
     }
 }
 
+void Renderer::endFrame() {
+    const int height = framebuffer.getHeight();
+
+    auto rasterizeBand = [&](int yStart, int yEnd) {
+        for (const ScreenTriangle& t : triangles) {
+            if (t.maxY < yStart || t.minY >= yEnd) continue;
+
+            const DrawCall& call = drawCalls[t.drawIndex];
+            framebuffer.drawTexturedTriangle3D(
+                t.v[0], t.v[1], t.v[2],
+                *call.fragmentShader, call.uniforms,
+                yStart, yEnd
+            );
+        }
+    };
+
+    // Not worth spinning up threads for tiny scenes.
+    if (threads <= 1 || triangles.size() < 64) {
+        rasterizeBand(0, height);
+    } else {
+        // Many more bands than threads so a busy band doesn't stall everyone else.
+        const int bandCount = static_cast<int>(threads) * 4;
+        const int bandHeight = (height + bandCount - 1) / bandCount;
+
+        std::atomic<int> nextBand{0};
+
+        auto worker = [&]() {
+            for (;;) {
+                const int band = nextBand.fetch_add(1);
+                const int yStart = band * bandHeight;
+                if (yStart >= height) return;
+                rasterizeBand(yStart, std::min(height, yStart + bandHeight));
+            }
+        };
+
+        std::vector<std::thread> pool;
+        pool.reserve(threads - 1);
+        for (unsigned i = 1; i < threads; ++i) pool.emplace_back(worker);
+        worker();
+        for (std::thread& t : pool) t.join();
+    }
+
+    lastStats = currentStats;
+}
