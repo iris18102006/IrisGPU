@@ -94,11 +94,47 @@ struct Scene {
     Mesh custom;
     bool hasCustom = false;
 
-    if (length < 0.00001f) {
-        return Vec3(0, 0, 0);
+    Texture cubeTex = createCheckerTexture(128, 128, 16, Color(245, 125, 65), Color(35, 35, 65));
+    Texture sphereTex = createCheckerTexture(128, 128, 8, Color(80, 220, 200), Color(240, 240, 240));
+    Texture torusTex = createCheckerTexture(128, 128, 8, Color(240, 90, 170), Color(70, 40, 120));
+    Texture floorTex = createCheckerTexture(64, 64, 32, Color(90, 90, 105), Color(55, 55, 70));
+    Texture customTex = createCheckerTexture(64, 64, 8, Color(230, 200, 90), Color(90, 70, 40));
+
+    bool loadModel(const std::string& path) {
+        std::string error;
+        if (!loadObj(path, custom, &error)) {
+            std::cerr << "Could not load '" << path << "': " << error << '\n';
+            return false;
+        }
+        custom.normalizeToUnitSize();
+        hasCustom = true;
+        std::cout << "Loaded " << path << ": " << custom.vertices.size()
+                  << " vertices, " << custom.triangles.size() << " triangles\n";
+        return true;
     }
 
-    return multiply(v, 1.0f / length);
+    void draw(Renderer& renderer, const Camera& camera, const ShaderUniforms& base,
+              const FragmentShader& shader, float t) const {
+        MeshInstance floorInst;
+        floorInst.mesh = &floor;
+        floorInst.texture = &floorTex;
+        floorInst.position = Vec3(0, -1.5f, 0);
+        renderer.draw(floorInst, camera, base, shader);
+
+        MeshInstance cubeInst;
+        cubeInst.mesh = &cube;
+        cubeInst.texture = &cubeTex;
+        cubeInst.position = Vec3(0, 0, -5);
+        cubeInst.rotation = Vec3(t * 40.0f, t * 57.0f, 0);
+        renderer.draw(cubeInst, camera, base, shader);
+
+        MeshInstance sphereInst;
+        sphereInst.mesh = &sphere;
+        sphereInst.texture = &sphereTex;
+        sphereInst.position = Vec3(-3.2f, std::sin(t * 1.5f) * 0.4f, -5);
+        sphereInst.rotation = Vec3(0, t * 30.0f, 0);
+        renderer.draw(sphereInst, camera, base, shader);
+
 }
 
 void worldToCamera(
