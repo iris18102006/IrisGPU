@@ -135,49 +135,52 @@ struct Scene {
         sphereInst.rotation = Vec3(0, t * 30.0f, 0);
         renderer.draw(sphereInst, camera, base, shader);
 
-}
+        MeshInstance torusInst;
+        torusInst.mesh = &torus;
+        torusInst.texture = &torusTex;
+        torusInst.position = Vec3(3.2f, 0, -5);
+        torusInst.rotation = Vec3(t * 50.0f, t * 25.0f, 0);
+        renderer.draw(torusInst, camera, base, shader);
 
-void worldToCamera(
-    const Vec3& point,
-    const Vec3& camera,
-    float yaw,
-    float pitch,
-    Vec3& result
-) {
-    Vec3 relative = subtract(point, camera);
-
-    float cy = std::cos(yaw);
-    float sy = std::sin(yaw);
-
-    float x1 = cy * relative.x - sy * relative.z;
-    float z1 = sy * relative.x + cy * relative.z;
-
-    float cp = std::cos(pitch);
-    float sp = std::sin(pitch);
-
-    result = Vec3(
-        x1,
-        cp * relative.y + sp * z1,
-        -sp * relative.y + cp * z1
-    );
-}
-
-ClipVertex interpolate(
-    const ClipVertex& a,
-    const ClipVertex& b,
-    float t
-) {
-    return {
-        Vec3(
-            a.position.x + (b.position.x - a.position.x) * t,
-            a.position.y + (b.position.y - a.position.y) * t,
-            a.position.z + (b.position.z - a.position.z) * t
-        ),
-        {
-            a.uv.u + (b.uv.u - a.uv.u) * t,
-            a.uv.v + (b.uv.v - a.uv.v) * t
+        if (hasCustom) {
+            MeshInstance inst;
+            inst.mesh = &custom;
+            inst.texture = &customTex;
+            inst.position = Vec3(0, 0.3f, -9);
+            inst.rotation = Vec3(0, t * 35.0f, 0);
+            inst.scale = Vec3(1.8f, 1.8f, 1.8f);
+            renderer.draw(inst, camera, base, shader);
         }
-    };
+    }
+};
+
+void renderFrame(Renderer& renderer, const Scene& scene, const Camera& camera,
+                 ShaderUniforms uniforms, const FragmentShader& shader, float t) {
+    // Light direction is defined in world space and brought into view space once per frame.
+    const Vec3 worldLight = normalize(Vec3(0.5f, 0.9f, 0.6f));
+    uniforms.lightDirection = normalize(camera.viewMatrix().transformDirection(worldLight));
+    uniforms.time = t;
+
+    renderer.beginFrame(kBackground);
+    scene.draw(renderer, camera, uniforms, shader, t);
+    renderer.endFrame();
+}
+
+Camera defaultCamera() {
+    Camera camera;
+    camera.position = Vec3(0, 1.2f, 2.5f);
+    camera.pitch = -0.18f;
+    return camera;
+}
+
+const char* modeName(ShadeMode m) {
+    switch (m) {
+        case ShadeMode::TexturedLit: return "lit";
+        case ShadeMode::TexturedFlat: return "unlit";
+        case ShadeMode::Normals: return "normals";
+        case ShadeMode::Depth: return "depth";
+    }
+    return "?";
 }
 
 std::vector<ClipVertex> clipAgainstPlane(
