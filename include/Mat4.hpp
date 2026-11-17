@@ -101,18 +101,18 @@ public:
         return r;
     }
 
-        float w =
-            at(3, 0) * point.x +
-            at(3, 1) * point.y +
-            at(3, 2) * point.z +
-            at(3, 3);
-
-        if (w != 0.0f && w != 1.0f) {
-            x /= w;
-            y /= w;
-            z /= w;
-        }
-
-        return Vec3(x, y, z);
+    Vec4 operator*(const Vec4& v) const {
+        return {
+            at(0, 0) * v.x + at(0, 1) * v.y + at(0, 2) * v.z + at(0, 3) * v.w,
+            at(1, 0) * v.x + at(1, 1) * v.y + at(1, 2) * v.z + at(1, 3) * v.w,
+            at(2, 0) * v.x + at(2, 1) * v.y + at(2, 2) * v.z + at(2, 3) * v.w,
+            at(3, 0) * v.x + at(3, 1) * v.y + at(3, 2) * v.z + at(3, 3) * v.w
+        };
     }
+
+    // Affine transform of a point (w = 1). No perspective divide here on purpose.
+    Vec3 transformPoint(const Vec3& p) const { return (*this * Vec4(p, 1.0f)).xyz(); }
+
+    // Transform of a direction (w = 0): ignores translation.
+    Vec3 transformDirection(const Vec3& d) const { return (*this * Vec4(d, 0.0f)).xyz(); }
 };
