@@ -96,3 +96,47 @@ void Renderer::draw(
 ) {
     if (!instance.mesh || !fragmentShader) return;
 
+    const float aspect = static_cast<float>(framebuffer.getWidth()) /
+                         static_cast<float>(framebuffer.getHeight());
+
+    DrawCall call;
+    call.uniforms = baseUniforms;
+    call.fragmentShader = &fragmentShader;
+
+    ShaderUniforms& u = call.uniforms;
+    u.model = instance.modelMatrix();
+    u.view = camera.viewMatrix();
+    u.projection = camera.projectionMatrix(aspect);
+    u.modelView = u.view * u.model;
+    u.mvp = u.projection * u.modelView;
+    u.cameraPosition = camera.position;
+    u.yaw = camera.yaw;
+    u.pitch = camera.pitch;
+
+    if (instance.texture) {
+        u.texture = &instance.texture->pixels;
+        u.textureWidth = instance.texture->width;
+        u.textureHeight = instance.texture->height;
+    }
+
+    drawCalls.push_back(std::move(call));
+    const std::size_t drawIndex = drawCalls.size() - 1;
+    const ShaderUniforms& uniforms = drawCalls[drawIndex].uniforms;
+
+    const Mesh& mesh = *instance.mesh;
+    const int width = framebuffer.getWidth();
+    const int height = framebuffer.getHeight();
+
+    for (const MeshTriangle& tri : mesh.triangles) {
+        ++currentStats.trianglesSubmitted;
+
+        // ---- vertex stage ----
+        Polygon poly;
+        poly.count = 3;
+
+        for (int i = 0; i < 3; ++i) {
+            Vertex in;
+            in.position = mesh.vertices[tri.indices[i]];
+            in.uv = tri.uvs[i];
+            in.normal = tri.normals[i];
+
