@@ -202,3 +202,70 @@ bool testObjRejectsBadInput() {
            !parseObj(badVertex, m);
 }
 
+// ---------------- Renderer ----------------
+
+Camera frontCamera() {
+    Camera c;
+    c.position = Vec3(0, 0, 3);
+    return c;
+}
+
+Mesh singleTriangle(Vec3 a, Vec3 b, Vec3 c) {
+    Mesh m;
+    m.vertices = {a, b, c};
+    MeshTriangle t;
+    t.indices = {0, 1, 2};
+    t.normals = {Vec3(0, 0, 1), Vec3(0, 0, 1), Vec3(0, 0, 1)};
+    m.triangles.push_back(t);
+    return m;
+}
+
+std::size_t countColor(const Framebuffer& fb, const Color& color) {
+    std::size_t n = 0;
+    for (int i = 0; i < fb.getWidth() * fb.getHeight(); ++i) {
+        if (fb.getPixels()[i] == color) ++n;
+    }
+    return n;
+}
+
+bool testRendererDrawsFrontFace() {
+    Framebuffer fb(64, 64);
+    Renderer r(fb, 1);
+
+    const Mesh tri = singleTriangle(Vec3(-1, -1, 0), Vec3(1, -1, 0), Vec3(0, 1, 0));  // CCW facing +Z
+    MeshInstance inst;
+    inst.mesh = &tri;
+
+    const FragmentShader shader = solidRed();
+    r.beginFrame(kBg);
+    r.draw(inst, frontCamera(), ShaderUniforms{}, shader);
+    r.endFrame();
+
+    return *fb.getPixel(32, 36) == kRed && *fb.getPixel(1, 1) == kBg;
+}
+
+bool testRendererCullsBackFace() {
+    Framebuffer fb(64, 64);
+    Renderer r(fb, 1);
+
+    // Same triangle, wound the other way: facing away from the camera.
+    const Mesh tri = singleTriangle(Vec3(-1, -1, 0), Vec3(0, 1, 0), Vec3(1, -1, 0));
+    MeshInstance inst;
+    inst.mesh = &tri;
+
+    const FragmentShader shader = solidRed();
+
+    r.beginFrame(kBg);
+    r.draw(inst, frontCamera(), ShaderUniforms{}, shader);
+    r.endFrame();
+    const bool culled = countColor(fb, kRed) == 0;
+
+    r.setBackfaceCulling(false);
+    r.beginFrame(kBg);
+    r.draw(inst, frontCamera(), ShaderUniforms{}, shader);
+    r.endFrame();
+    const bool drawnWhenDisabled = countColor(fb, kRed) > 0;
+
+    return culled && drawnWhenDisabled;
+}
+
