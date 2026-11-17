@@ -99,7 +99,6 @@ void Framebuffer::drawTriangle3D(
     }
 }
 
-// Compatibility interface: uses a default texture fragment shader.
 void Framebuffer::drawTexturedTriangle3D(
     const TexturedVertex& a,
     const TexturedVertex& b,
@@ -113,68 +112,35 @@ void Framebuffer::drawTexturedTriangle3D(
     uniforms.textureWidth = textureWidth;
     uniforms.textureHeight = textureHeight;
 
-    FragmentShader shader = [](
-        const FragmentInput& input,
-        const ShaderUniforms& data
-    ) -> Color {
-        if (!data.texture ||
-            data.textureWidth <= 0 ||
-            data.textureHeight <= 0) {
-            return Color(255, 0, 255);
-        }
-
-        const auto& tex = *data.texture;
-
-        if (tex.size() < static_cast<std::size_t>(
-            data.textureWidth * data.textureHeight
-        )) {
-            return Color(255, 0, 255);
-        }
-
-        float u = std::clamp(input.uv.u, 0.0f, 1.0f);
-        float v = std::clamp(input.uv.v, 0.0f, 1.0f);
-
-        int tx = std::min(
-            data.textureWidth - 1,
-            static_cast<int>(u * data.textureWidth)
-        );
-
-        int ty = std::min(
-            data.textureHeight - 1,
-            static_cast<int>(v * data.textureHeight)
-        );
-
-        return tex[ty * data.textureWidth + tx];
+    const FragmentShader shader = [](const FragmentInput& in, const ShaderUniforms& u) {
+        return sampleTexture(u, in.uv);
     };
 
     drawTexturedTriangle3D(a, b, c, shader, uniforms);
 }
 
-// Programmable fragment shader rasterization.
 void Framebuffer::drawTexturedTriangle3D(
     const TexturedVertex& a,
     const TexturedVertex& b,
     const TexturedVertex& c,
     const FragmentShader& fragmentShader,
-    const ShaderUniforms& uniforms
+    const ShaderUniforms& uniforms,
+    int yMin,
+    int yMax
 ) {
-    if (!fragmentShader ||
-        a.depth <= 0 ||
-        b.depth <= 0 ||
-        c.depth <= 0) {
-        return;
-    }
+    if (!fragmentShader || a.depth <= 0 || b.depth <= 0 || c.depth <= 0) return;
 
-    float area =
-        (b.x - a.x) * (c.y - a.y) -
-        (b.y - a.y) * (c.x - a.x);
+    if (yMax < 0 || yMax > height) yMax = height;
+    yMin = std::max(0, yMin);
 
+    const float area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
     if (std::abs(area) < 0.0001f) return;
+    const float invArea = 1.0f / area;
 
-    int minX = std::max(
-        0,
-        static_cast<int>(std::floor(std::min({a.x, b.x, c.x})))
-    );
+    const int minX = std::max(0, static_cast<int>(std::floor(std::min({a.x, b.x, c.x}))));
+    const int maxX = std::min(width - 1, static_cast<int>(std::ceil(std::max({a.x, b.x, c.x}))));
+    const int minY = std::max(yMin, static_cast<int>(std::floor(std::min({a.y, b.y, c.y}))));
+    const int maxY = std::min(yMax - 1, static_cast<int>(std::ceil(std::max({a.y, b.y, c.y}))));
 
     int maxX = std::min(
         width - 1,
