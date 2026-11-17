@@ -51,11 +51,48 @@ Color shadeFragment(const FragmentInput& in, const ShaderUniforms& u) {
         case ShadeMode::TexturedFlat:
             return sampleTexture(u, in.uv);
 
+        case ShadeMode::TexturedLit:
+            break;
+    }
+
+    const Color base = sampleTexture(u, in.uv);
+
+    const Vec3 lightDir = normalize(u.lightDirection);
+    const float diffuse = std::max(dot(n, lightDir), 0.0f);
+
+    // Directional approximation: the viewer looks down -Z in view space.
+    const Vec3 half = normalize(lightDir + Vec3(0, 0, 1));
+    const float specular = diffuse > 0.0f
+        ? std::pow(std::max(dot(n, half), 0.0f), u.shininess) * u.specularStrength
+        : 0.0f;
+
+    const float light = u.ambient + (1.0f - u.ambient) * diffuse;
+
+    const float fog = std::clamp((in.depth - 12.0f) / 30.0f, 0.0f, 1.0f);
+
+    auto channel = [&](std::uint8_t base8, std::uint8_t bg8) {
+        float c = static_cast<float>(base8) / 255.0f * light + specular;
+        c = c * (1.0f - fog) + (static_cast<float>(bg8) / 255.0f) * fog;
+        return static_cast<std::uint8_t>(std::clamp(c, 0.0f, 1.0f) * 255.0f + 0.5f);
+    };
+
+    return Color(
+        channel(base.r, kBackground.r),
+        channel(base.g, kBackground.g),
+        channel(base.b, kBackground.b)
     );
 }
 
-Vec3 normalize(const Vec3& v) {
-    float length = std::sqrt(dot(v, v));
+// ---------------------------------------------------------------------------
+// Scene
+// ---------------------------------------------------------------------------
+struct Scene {
+    Mesh cube = createCubeMesh();
+    Mesh sphere = createSphereMesh();
+    Mesh torus = createTorusMesh();
+    Mesh floor = createPlaneMesh(30.0f, 30.0f);
+    Mesh custom;
+    bool hasCustom = false;
 
     if (length < 0.00001f) {
         return Vec3(0, 0, 0);
