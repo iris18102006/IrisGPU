@@ -187,67 +187,35 @@ void Framebuffer::drawTexturedTriangle3D(
             input.depth = inv;
             input.normal = (na * w0 + nb * w1 + nc * w2) * inv;
 
-            float u = (
-                w0 * a.u * invA +
-                w1 * b.u * invB +
-                w2 * c.u * invC
-            ) / denominator;
-
-            float v = (
-                w0 * a.v * invA +
-                w1 * b.v * invB +
-                w2 * c.v * invC
-            ) / denominator;
-
-            FragmentInput input {
-                {u, v},
-                w0 * a.depth + w1 * b.depth + w2 * c.depth
-            };
-
-            // Execute the fragment shader.
-            Color outputColor = fragmentShader(input, uniforms);
+            const Color out = fragmentShader(input, uniforms);
 
             depthBuffer[index] = z;
-            pixels[index] = outputColor;
+            pixels[index] = out;
         }
     }
 }
 
 bool Framebuffer::savePPM(const std::string& filename) const {
     std::ofstream file(filename, std::ios::binary);
-
     if (!file) return false;
 
     file << "P6\n" << width << " " << height << "\n255\n";
-
-    for (const Color& color : pixels) {
-        file.put(static_cast<char>(color.r));
-        file.put(static_cast<char>(color.g));
-        file.put(static_cast<char>(color.b));
-    }
+    file.write(reinterpret_cast<const char*>(pixels.data()),
+               static_cast<std::streamsize>(pixels.size() * sizeof(Color)));
 
     return file.good();
 }
 
-int Framebuffer::getWidth() const {
-    return width;
-}
+int Framebuffer::getWidth() const { return width; }
+int Framebuffer::getHeight() const { return height; }
 
-int Framebuffer::getHeight() const {
-    return height;
-}
 std::size_t Framebuffer::getIndex(int x, int y) const {
-    return static_cast<std::size_t>(y) * width + x;
+    return static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x);
 }
 
-const Color* Framebuffer::getPixels() const {
-    return pixels.data();
-}
+const Color* Framebuffer::getPixels() const { return pixels.data(); }
 
 const Color* Framebuffer::getPixel(int x, int y) const {
-    if (x < 0 || x >= width || y < 0 || y >= height) {
-        return nullptr;
-    }
-
+    if (x < 0 || x >= width || y < 0 || y >= height) return nullptr;
     return &pixels[getIndex(x, y)];
 }
