@@ -271,12 +271,8 @@ int main(int argc, char** argv) {
     }
 
     SDL_Window* window = SDL_CreateWindow(
-        "IrisGPU - Programmable Software Renderer",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        width,
-        height,
-        SDL_WINDOW_SHOWN
+        "IrisGPU", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        kWidth, kHeight, SDL_WINDOW_SHOWN
     );
 
     if (!window) {
@@ -285,21 +281,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(
-        window,
-        -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
+    SDL_Renderer* sdlRenderer = SDL_CreateRenderer(
+        window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
     );
+    if (!sdlRenderer) sdlRenderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 
-    if (!renderer) {
-        renderer = SDL_CreateRenderer(
-            window,
-            -1,
-            SDL_RENDERER_SOFTWARE
-        );
-    }
-
-    if (!renderer) {
+    if (!sdlRenderer) {
         std::cerr << SDL_GetError() << '\n';
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -307,188 +294,66 @@ int main(int argc, char** argv) {
     }
 
     SDL_Texture* displayTexture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_RGB24,
-        SDL_TEXTUREACCESS_STREAMING,
-        width,
-        height
+        sdlRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, kWidth, kHeight
     );
 
     if (!displayTexture) {
         std::cerr << SDL_GetError() << '\n';
-        SDL_DestroyRenderer(renderer);
+        SDL_DestroyRenderer(sdlRenderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
 
-    Framebuffer framebuffer(width, height);
-
-    const int textureWidth = 128;
-    const int textureHeight = 128;
-
-    std::vector<Color> texture =
-        createCheckerTexture(textureWidth, textureHeight);
-
-    std::array<Vec3, 8> vertices = {
-        Vec3(-1, -1, -1), Vec3(1, -1, -1),
-        Vec3(1, 1, -1), Vec3(-1, 1, -1),
-        Vec3(-1, -1, 1), Vec3(1, -1, 1),
-        Vec3(1, 1, 1), Vec3(-1, 1, 1)
-    };
-
-    std::array<std::array<int, 3>, 12> triangles = {{
-        {{0, 1, 2}}, {{0, 2, 3}},
-        {{5, 4, 7}}, {{5, 7, 6}},
-        {{4, 0, 3}}, {{4, 3, 7}},
-        {{1, 5, 6}}, {{1, 6, 2}},
-        {{3, 2, 6}}, {{3, 6, 7}},
-        {{4, 5, 1}}, {{4, 1, 0}}
-    }};
-
-    std::array<std::array<Vec2, 3>, 12> uvs = {{
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}},
-        {{{0,1}, {1,1}, {1,0}}},
-        {{{0,1}, {1,0}, {0,0}}}
-    }};
-
-    Vec3 cameraPosition(0, 0, 0);
-
-    float yaw = 0.0f;
-    float pitch = 0.0f;
-    float angle = 0.0f;
-
-    const float movementSpeed = 4.0f;
-    const float mouseSensitivity = 0.0025f;
-    const float aspectRatio = static_cast<float>(width) / height;
-
-    // ==========================================
-    // IRISGPU VERTEX SHADER
-    // ==========================================
-
-    VertexShader vertexShader =
-        [](const Vertex& input, const ShaderUniforms& uniforms)
-            -> VertexOutput {
-
-        Vec3 worldPosition =
-            uniforms.model.transformPoint(input.position);
-
-        Vec3 cameraSpacePosition;
-
-        worldToCamera(
-            worldPosition,
-            uniforms.cameraPosition,
-            uniforms.yaw,
-            uniforms.pitch,
-            cameraSpacePosition
-        );
-
-        return {
-            cameraSpacePosition,
-            input.uv
-        };
-    };
-
-    // ==========================================
-    // IRISGPU FRAGMENT SHADER
-    // ==========================================
-
-    FragmentShader fragmentShader =
-        [](const FragmentInput& input, const ShaderUniforms& uniforms)
-            -> Color {
-
-        if (
-            uniforms.texture == nullptr ||
-            uniforms.textureWidth <= 0 ||
-            uniforms.textureHeight <= 0
-        ) {
-            return Color(255, 0, 255);
-        }
-
-        float u = std::clamp(input.uv.u, 0.0f, 0.9999f);
-        float v = std::clamp(input.uv.v, 0.0f, 0.9999f);
-
-        int tx = static_cast<int>(u * uniforms.textureWidth);
-        int ty = static_cast<int>(v * uniforms.textureHeight);
-
-        const Color& base =
-            (*uniforms.texture)[ty * uniforms.textureWidth + tx];
-
-        float wave = std::sin(
-            uniforms.time * 3.0f + input.uv.u * 12.0f
-        );
-
-        float brightness = 0.75f + 0.25f * wave;
-
-        auto shade = [brightness](std::uint8_t channel) {
-            return static_cast<std::uint8_t>(
-                std::clamp(
-                    static_cast<float>(channel) * brightness,
-                    0.0f,
-                    255.0f
-                )
-            );
-        };
-
-        return Color(
-            shade(base.r),
-            shade(base.g),
-            shade(base.b)
-        );
-    };
+    Camera camera = defaultCamera();
 
     bool running = true;
-    SDL_Event event;
+    bool paused = false;
+    float sceneTime = 0.0f;
+    int screenshotCount = 0;
 
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
-    Uint64 previousTime = SDL_GetPerformanceCounter();
+    printUsage();
+    std::cout << "\nRasterizer threads: " << renderer.threadCount() << '\n';
 
-    std::cout << "IrisGPU: Programmable shaders enabled!\n";
-    std::cout << "Vertex shader: ACTIVE\n";
-    std::cout << "Fragment shader: ACTIVE\n";
-    std::cout << "WASD: Move | Mouse: Look | Q/E: Vertical | ESC: Exit\n";
+    Uint64 previous = SDL_GetPerformanceCounter();
+    double titleTimer = 0.0;
+    int titleFrames = 0;
 
     while (running) {
-        Uint64 currentTime = SDL_GetPerformanceCounter();
+        const Uint64 now = SDL_GetPerformanceCounter();
+        float dt = static_cast<float>(now - previous) / static_cast<float>(SDL_GetPerformanceFrequency());
+        previous = now;
+        dt = std::min(dt, 0.05f);
 
-        float deltaTime = static_cast<float>(
-            currentTime - previousTime
-        ) / static_cast<float>(SDL_GetPerformanceFrequency());
-
-        previousTime = currentTime;
-        deltaTime = std::min(deltaTime, 0.05f);
-
+        SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
-            }
-
-            if (
-                event.type == SDL_KEYDOWN &&
-                event.key.keysym.sym == SDLK_ESCAPE
-            ) {
-                running = false;
-            }
+            if (event.type == SDL_QUIT) running = false;
 
             if (event.type == SDL_MOUSEMOTION) {
-                yaw += event.motion.xrel * mouseSensitivity;
-                pitch -= event.motion.yrel * mouseSensitivity;
+                camera.yaw += static_cast<float>(event.motion.xrel) * 0.0025f;
+                camera.pitch -= static_cast<float>(event.motion.yrel) * 0.0025f;
+                camera.pitch = std::clamp(camera.pitch, -kPi / 2.0f + 0.01f, kPi / 2.0f - 0.01f);
+            }
 
-                pitch = std::clamp(
-                    pitch,
-                    -PI / 2.0f + 0.01f,
-                    PI / 2.0f - 0.01f
-                );
+            if (event.type == SDL_KEYDOWN && !event.key.repeat) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_ESCAPE: running = false; break;
+                    case SDLK_SPACE: paused = !paused; break;
+                    case SDLK_1: uniforms.mode = ShadeMode::TexturedLit; break;
+                    case SDLK_2: uniforms.mode = ShadeMode::TexturedFlat; break;
+                    case SDLK_3: uniforms.mode = ShadeMode::Normals; break;
+                    case SDLK_4: uniforms.mode = ShadeMode::Depth; break;
+                    case SDLK_b: uniforms.bilinear = !uniforms.bilinear; break;
+                    case SDLK_c: renderer.setBackfaceCulling(!renderer.backfaceCulling()); break;
+                    case SDLK_p: {
+                        const std::string name = "screenshot_" + std::to_string(screenshotCount++) + ".ppm";
+                        if (framebuffer.savePPM(name)) std::cout << "Saved " << name << '\n';
+                        break;
+                    }
+                    default: break;
+                }
             }
         }
 
