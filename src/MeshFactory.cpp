@@ -93,3 +93,34 @@ Mesh createSphereMesh(int stacks, int slices) {
         }
     }
 
+    return m;
+}
+
+Mesh createPlaneMesh(float halfSize, float uvTiles) {
+    Mesh m;
+    m.name = "Plane";
+
+    const Vec3 t(0, 0, 1);
+    const Vec3 b(1, 0, 0);  // cross(t, b) = +Y
+    auto corner = [&](float sx, float sy) { return t * (sx * halfSize) + b * (sy * halfSize); };
+
+    addQuad(m, corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1),
+            {0, uvTiles}, {uvTiles, uvTiles}, {uvTiles, 0}, {0, 0});
+
+    m.computeFlatNormals();
+    return m;
+}
+
+Mesh createTorusMesh(float majorRadius, float minorRadius, int segments, int sides) {
+    Mesh m;
+    m.name = "Torus";
+
+    for (int i = 0; i < segments; ++i) {
+        const float u = 2.0f * kPi * static_cast<float>(i) / static_cast<float>(segments);
+        for (int j = 0; j < sides; ++j) {
+            const float v = 2.0f * kPi * static_cast<float>(j) / static_cast<float>(sides);
+            const float ring = majorRadius + minorRadius * std::cos(v);
+            m.vertices.push_back({ring * std::cos(u), minorRadius * std::sin(v), ring * std::sin(u)});
+        }
+    }
+
