@@ -94,3 +94,20 @@ inline Color sampleBilinear(const std::vector<Color>& tex, int w, int h, float u
     const float tx = fx - static_cast<float>(x0);
     const float ty = fy - static_cast<float>(y0);
 
+    auto texel = [&](int x, int y) -> const Color& {
+        x = ((x % w) + w) % w;
+        y = ((y % h) + h) % h;
+        return tex[static_cast<std::size_t>(y) * w + x];
+    };
+
+    const Color& c00 = texel(x0, y0);
+    const Color& c10 = texel(x0 + 1, y0);
+    const Color& c01 = texel(x0, y0 + 1);
+    const Color& c11 = texel(x0 + 1, y0 + 1);
+
+    auto mix = [&](std::uint8_t a, std::uint8_t b, std::uint8_t c, std::uint8_t d) {
+        const float top = static_cast<float>(a) * (1 - tx) + static_cast<float>(b) * tx;
+        const float bot = static_cast<float>(c) * (1 - tx) + static_cast<float>(d) * tx;
+        return static_cast<std::uint8_t>(std::clamp(top * (1 - ty) + bot * ty, 0.0f, 255.0f) + 0.5f);
+    };
+
