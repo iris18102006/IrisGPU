@@ -406,3 +406,68 @@ bool testSphereRendersRound() {
     Renderer r(fb, 1);
     const Mesh sphere = createSphereMesh(24, 48);
 
+    MeshInstance inst;
+    inst.mesh = &sphere;
+
+    Camera cam;
+    cam.position = Vec3(0, 0, 4);
+
+    const FragmentShader shader = solidRed();
+    r.beginFrame(kBg);
+    r.draw(inst, cam, ShaderUniforms{}, shader);
+    r.endFrame();
+
+    // Center is covered, corners are not.
+    return *fb.getPixel(48, 48) == kRed &&
+           *fb.getPixel(2, 2) == kBg &&
+           *fb.getPixel(93, 93) == kBg;
+}
+
+}  // namespace
+
+int main() {
+    int passed = 0, failed = 0;
+
+    auto run = [&](const char* name, bool (*test)()) {
+        bool ok = false;
+        try {
+            ok = test();
+        } catch (const std::exception& e) {
+            std::cout << "  exception: " << e.what() << '\n';
+        }
+        std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n';
+        ok ? ++passed : ++failed;
+    };
+
+    run("Vec3 basics", testVec3Basics);
+    run("Mat4 translation", testMat4Translation);
+    run("Mat4 rotationY", testMat4RotationY);
+    run("Mat4 multiply order", testMat4Multiply);
+    run("Mat4 lookAt", testLookAt);
+    run("Mat4 perspective maps near/far", testPerspectiveMapsNearFar);
+    run("Mat4 perspective FOV", testPerspectiveFov);
+    run("Camera forward/right", testCameraForward);
+
+    run("Cube mesh winding + normals", testCubeMesh);
+    run("Sphere mesh winding", testSphereMesh);
+    run("Torus mesh winding", testTorusMesh);
+    run("Plane mesh winding", testPlaneMesh);
+    run("Mesh normalizeToUnitSize", testNormalizeToUnitSize);
+
+    run("OBJ quads + negative indices", testObjQuadAndNegativeIndices);
+    run("OBJ generates missing normals", testObjGeneratesNormals);
+    run("OBJ uses given normals", testObjUsesGivenNormals);
+    run("OBJ rejects bad input", testObjRejectsBadInput);
+
+    run("Renderer draws front face", testRendererDrawsFrontFace);
+    run("Renderer culls back face", testRendererCullsBackFace);
+    run("Renderer clips near plane", testRendererClipsNearPlane);
+    run("Renderer rejects geometry behind camera", testRendererRejectsBehindCamera);
+    run("Renderer depth ordering", testRendererDepthOrdering);
+    run("Renderer UVs stay in range", testPerspectiveCorrectUV);
+    run("Sphere renders round", testSphereRendersRound);
+    run("Threaded == single-threaded output", testThreadedMatchesSingleThreaded);
+
+    std::cout << "\nResults: " << passed << " passed, " << failed << " failed\n";
+    return failed == 0 ? 0 : 1;
+}
